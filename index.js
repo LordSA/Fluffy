@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import axios from 'axios';
 
+// ===== DISCORD CLIENT SETUP =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -11,20 +12,24 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-// If you want a prefix like !ai, set this:
-const PREFIX = '!ai'; // user types: !ai hello
+const PREFIX = '!ai'; // Command: !ai hello
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`✅ Using API: ${process.env.RYZNN_API_URL}`);
 });
 
-// Function to call your API
+// ===== RYZNN API CALL FUNCTION =====
 async function callRyznnAPI(userMessage, userId) {
   try {
-    // This is a generic example; you may need to change
-    // body / headers according to your API spec
+    console.log('🔹 Sending to API:', {
+      url: process.env.RYZNN_API_URL,
+      message: userMessage,
+      userId
+    });
+
     const response = await axios.post(
-      process.env.RYZNN_API_URL,
+      process.env.RYZNN_API_URL,   // MUST BE FULL ENDPOINT, NOT JUST DOMAIN
       {
         message: userMessage,
         userId: userId
@@ -32,49 +37,54 @@ async function callRyznnAPI(userMessage, userId) {
       {
         headers: {
           'Content-Type': 'application/json'
-          // Add Authorization or API key here if your API needs it
-          // 'Authorization': `Bearer ${process.env.RYZNN_API_KEY}`
-        }
+        },
+        timeout: 20000
       }
     );
 
-    // Adjust this depending on how your API responds.
-    // For example: { reply: "Hello" } or { content: "Hello" }
+    console.log('✅ API Status:', response.status);
+    console.log('✅ API Response:', response.data);
+
     const data = response.data;
-    const replyText =
+
+    // Adjust this if your API uses a different key
+    const reply =
       data.reply ||
+      data.response ||
       data.message ||
       data.content ||
-      JSON.stringify(data);
+      '⚠️ API returned no readable reply';
 
-    return replyText;
+    return reply;
+
   } catch (error) {
     console.error('❌ Error calling Ryznn API:');
-    console.error(error.response?.data || error.message);
-    return 'Uh oh, my brain API glitched for a sec 😵‍💫';
+    console.error('URL:', process.env.RYZNN_API_URL);
+    console.error('Status:', error.response?.status);
+    console.error('Response:', error.response?.data);
+    console.error('Message:', error.message);
+
+    return '❌ Ryznn API is not reachable right now.';
   }
 }
 
+// ===== DISCORD MESSAGE HANDLER =====
 client.on('messageCreate', async (message) => {
-  // ignore other bots
   if (message.author.bot) return;
-
-  // 1️⃣ If you want prefix-based bot: use this
   if (!message.content.startsWith(PREFIX)) return;
 
   const userMessage = message.content.slice(PREFIX.length).trim();
+
   if (!userMessage) {
-    return message.reply('Say something after the command, like `!ai hello` 🫶');
+    return message.reply('Type something after `!ai` 🤍');
   }
 
-  // Optionally show a "thinking" message
-  const thinkingMessage = await message.reply('Thinking… 🧠');
+  const thinking = await message.reply('🧠 Thinking...');
 
   const reply = await callRyznnAPI(userMessage, message.author.id);
 
-  // Edit the thinking message with final reply
-  await thinkingMessage.edit(reply);
+  await thinking.edit(reply);
 });
 
-// Log in the bot
+// ===== LOGIN =====
 client.login(process.env.DISCORD_TOKEN);
