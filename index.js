@@ -1,6 +1,6 @@
-import "dotenv/config";
 import { Client, GatewayIntentBits } from "discord.js";
-import { handleMessage } from "./plugins/chatCore.js";
+import { handleMessage } from "./plugins/chatbot.js";
+import { config } from "./config.js";
 
 const client = new Client({
   intents: [
@@ -10,10 +10,14 @@ const client = new Client({
   ]
 });
 
-client.on("messageCreate", async msg => {
+client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
-  handleMessage(msg);
+  await handleMessage(msg);
 });
 
-client.once("ready", () => console.log("✅ Fluffy Online"));
-client.login(process.env.DISCORD_TOKEN);
+client.once("ready", () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log("✅ Fluffy Discord MD ready in production style.");
+});
+
+client.login(config.discordToken);
