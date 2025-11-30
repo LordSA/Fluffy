@@ -15,76 +15,83 @@ const PREFIX = '!ai';
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  console.log(`✅ Using API: ${process.env.RYZNN_API_URL}`);
+  console.log(`✅ API base: ${process.env.RYZNN_API_BASE}`);
+  console.log(`✅ Model: ${process.env.RYZNN_MODEL}`);
 });
 
+function getChatCompletionsUrl() {
+  const base = (process.env.RYZNN_API_BASE || 'https://ai.ryznn.xyz').replace(/\/+$/, '');
+  return `${base}/v1/chat/completions`;
+}
+
 async function callRyznnAPI(userMessage, userId) {
+  const url = getChatCompletionsUrl();
+
   try {
     console.log('🔹 Sending to API:', {
-      url: process.env.RYZNN_API_URL,
+      url,
+      model: process.env.RYZNN_MODEL,
       message: userMessage,
       userId
     });
 
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (process.env.RYZNN_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.RYZNN_API_KEY}`;
+    }
+
     const response = await axios.post(
-      process.env.RYZNN_API_URL,
+      url,
       {
-        message: userMessage,
-        userId: userId
+        model: process.env.RYZNN_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are Fluffy, a friendly Discord chatbot.'
+          },
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        // optional: for OpenAI-compatible APIs
+        user: userId
       },
       {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 15000
+        headers,
+        timeout: 20000
       }
     );
 
     console.log('✅ API Status:', response.status);
-    console.log('✅ API Response:', response.data);
+    console.log('✅ API Response:', JSON.stringify(response.data, null, 2));
 
-    const data = response.data;
-    const reply =
-      data.reply ||
-      data.response ||
-      data.message ||
-      data.content ||
-      '⚠️ API returned no readable reply';
+    const choice = response.data?.choices?.[0];
+    const reply = choice?.message?.content?.trim();
+
+    if (!reply) {
+      return '⚠️ API responded but I couldn’t find any message content.';
+    }
 
     return reply;
-
   } catch (error) {
     console.error('❌ Error calling Ryznn API:');
-    console.error('URL:', process.env.RYZNN_API_URL);
+    console.error('URL:', url);
     console.error('Status:', error.response?.status);
     console.error('Response:', error.response?.data);
     console.error('Message:', error.message);
 
-    // Different messages based on type of failure
-    if (error.response) {
-      // API responded with 4xx / 5xx
-      return `⚠️ My brain server responded with an error (${error.response.status}). Try again later.`;
-    } else if (error.request) {
-      // No response at all (API down / DNS / network)
-      return '🚫 I can’t reach my brain server right now. API seems offline.';
-    } else {
-      // Some other error setting up the request
-      return '💥 Something went wrong while preparing the API request.';
-    }
-  }
-}
-function fallbackReply(userMessage) {
-  const lower = userMessage.toLowerCase();
+    const status = error.response?.status ?? 'no response';
+    const body =
+      typeof error.response?.data === 'string'
+        ? error.response.data
+        : JSON.stringify(error.response?.data || {}, null, 2);
 
-  if (lower.includes('hello') || lower.includes('hi')) {
-    return 'Heyyy 👋 API is sleeping rn but I\'m still here.';
+    return `API error (${status}):\n\`\`\`\n${body}\n\`\`\``;
   }
-
-  if (lower.includes('who are you')) {
-    return 'I\'m Fluffy, a Discord bot that will use the Ryznn API once it\'s online 🧠';
-  }
-
-  return 'My main brain (API) is offline right now, so I’m in low-power mode 😴';
 }
 
 client.on('messageCreate', async (message) => {
@@ -93,23 +100,14 @@ client.on('messageCreate', async (message) => {
 
   const userMessage = message.content.slice(PREFIX.length).trim();
   if (!userMessage) {
-    return message.reply('Type something after `!ai` 😼');
+    return message.reply('Type something after `!ai`, bro 😼');
   }
 
-  const thinking = await message.reply('🧠 Thinking...');
+  const thinking = await message.reply('🧠 Talking to the AI…');
 
-  let reply = await callRyznnAPI(userMessage, message.author.id);
+  const reply = await callRyznnAPI(userMessage, message.author.id);
 
-if (
-  reply.includes('can’t reach my brain server') ||
-  reply.includes('responded with an error') ||
-  reply.includes('went wrong while preparing the API request')
-) {
-  reply = fallbackReply(userMessage);
-}
-
-await thinking.edit(reply);
-
+  await thinking.edit(reply);
 });
 
 client.login(process.env.DISCORD_TOKEN);
