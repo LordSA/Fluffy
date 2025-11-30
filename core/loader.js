@@ -1,27 +1,40 @@
-import fs from "fs";
-import path from "path";
 import { logger } from "./logger.js";
+export function registerPlugins(client, plugins = []) {
+  const list = plugins.filter(Boolean);
 
-export async function loadPlugins(client) {
-  const pluginsPath = path.join(process.cwd(), "plugins");
-  const files = fs.readdirSync(pluginsPath).filter(f => f.endsWith(".js"));
-
-  for (const file of files) {
-    const pluginPath = path.join(pluginsPath, file);
-
-    try {
-      const plugin = await import(`../plugins/${file}`);
-
-      if (typeof plugin.default === "function") {
-        plugin.default(client);
-        logger.info(`Loaded plugin: ${file}`);
-      } else {
-        logger.warn(`Plugin ${file} has no default export`);
-      }
-
-    } catch (err) {
-      logger.error(`Failed to load plugin ${file}`);
-      logger.error(err.stack || err.message);
-    }
+  if (!list.length) {
+    logger.warn("No plugins registered.");
+    return;
   }
+
+  logger.info(
+    "Registering plugins:",
+    list.map((p) => p.name).join(", ")
+  );
+
+  client.on("ready", () => {
+    for (const plugin of list) {
+      if (typeof plugin.onReady === "function") {
+        try {
+          plugin.onReady(client);
+        } catch (err) {
+          logger.error(`Plugin [${plugin.name}] onReady error:`, err);
+        }
+      }
+    }
+  });
+
+  client.on("messageCreate", async (message) => {
+    if (message.author.bot) return;
+
+    for (const plugin of list) {
+      if (typeof plugin.onMessage === "function") {
+        try {
+          await plugin.onMessage(client, message);
+        } catch (err) {
+          logger.error(`Plugin [${plugin.name}] onMessage error:`, err);
+        }
+      }
+    }
+  });
 }

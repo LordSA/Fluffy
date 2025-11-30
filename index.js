@@ -4,24 +4,11 @@ import { registerPlugins } from "./core/loader.js";
 import { chatPlugin } from "./plugins/chatbot.js";
 import { config } from "./config.js";
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
-});
-registerPlugins(client, [chatPlugin]);
-client.login(config.discordToken);
+const client = createClient();
 
-client.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
-  await handleMessage(msg);
-});
-
-client.once("ready", () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-  console.log("✅ Fluffy Discord MD ready in production style.");
-});
+registerPlugins(client, [
+  chatPlugin
+  // future plugins
+]);
 
 client.login(config.discordToken);
