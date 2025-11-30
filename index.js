@@ -99,6 +99,7 @@ client.on('messageCreate', async (message) => {
   const thinking = await message.reply('🧠 Thinking...');
 
   let reply = await callRyznnAPI(userMessage, message.author.id);
+
 if (
   reply.includes('can’t reach my brain server') ||
   reply.includes('responded with an error') ||
