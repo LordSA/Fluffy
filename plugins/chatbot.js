@@ -22,12 +22,12 @@ export const chatPlugin = {
       const cmd = cmdRaw.toLowerCase();
       const text = args.join(" ").trim();
 
-      if (cmd === "start") {
+      if (cmd === "chaton") {
         state.active = true;
         return message.reply("✅ Chat mode ON in this channel.");
       }
 
-      if (cmd === "stop") {
+      if (cmd === "chatoff") {
         state.active = false;
         return message.reply("🛑 Chat mode OFF in this channel.");
       }
