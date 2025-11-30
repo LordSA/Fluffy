@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import axios from 'axios';
 
-// ===== DISCORD CLIENT SETUP =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,14 +11,13 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-const PREFIX = '!ai'; // Command: !ai hello
+const PREFIX = '!ai';
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   console.log(`✅ Using API: ${process.env.RYZNN_API_URL}`);
 });
 
-// ===== RYZNN API CALL FUNCTION =====
 async function callRyznnAPI(userMessage, userId) {
   try {
     console.log('🔹 Sending to API:', {
@@ -29,7 +27,7 @@ async function callRyznnAPI(userMessage, userId) {
     });
 
     const response = await axios.post(
-      process.env.RYZNN_API_URL,   // MUST BE FULL ENDPOINT, NOT JUST DOMAIN
+      process.env.RYZNN_API_URL,
       {
         message: userMessage,
         userId: userId
@@ -38,7 +36,7 @@ async function callRyznnAPI(userMessage, userId) {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 20000
+        timeout: 15000
       }
     );
 
@@ -46,8 +44,6 @@ async function callRyznnAPI(userMessage, userId) {
     console.log('✅ API Response:', response.data);
 
     const data = response.data;
-
-    // Adjust this if your API uses a different key
     const reply =
       data.reply ||
       data.response ||
@@ -64,27 +60,55 @@ async function callRyznnAPI(userMessage, userId) {
     console.error('Response:', error.response?.data);
     console.error('Message:', error.message);
 
-    return '❌ Ryznn API is not reachable right now.';
+    // Different messages based on type of failure
+    if (error.response) {
+      // API responded with 4xx / 5xx
+      return `⚠️ My brain server responded with an error (${error.response.status}). Try again later.`;
+    } else if (error.request) {
+      // No response at all (API down / DNS / network)
+      return '🚫 I can’t reach my brain server right now. API seems offline.';
+    } else {
+      // Some other error setting up the request
+      return '💥 Something went wrong while preparing the API request.';
+    }
   }
 }
+function fallbackReply(userMessage) {
+  const lower = userMessage.toLowerCase();
 
-// ===== DISCORD MESSAGE HANDLER =====
+  if (lower.includes('hello') || lower.includes('hi')) {
+    return 'Heyyy 👋 API is sleeping rn but I\'m still here.';
+  }
+
+  if (lower.includes('who are you')) {
+    return 'I\'m Fluffy, a Discord bot that will use the Ryznn API once it\'s online 🧠';
+  }
+
+  return 'My main brain (API) is offline right now, so I’m in low-power mode 😴';
+}
+
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
 
   const userMessage = message.content.slice(PREFIX.length).trim();
-
   if (!userMessage) {
-    return message.reply('Type something after `!ai` 🤍');
+    return message.reply('Type something after `!ai` 😼');
   }
 
   const thinking = await message.reply('🧠 Thinking...');
 
-  const reply = await callRyznnAPI(userMessage, message.author.id);
+  let reply = await callRyznnAPI(userMessage, message.author.id);
+if (
+  reply.includes('can’t reach my brain server') ||
+  reply.includes('responded with an error') ||
+  reply.includes('went wrong while preparing the API request')
+) {
+  reply = fallbackReply(userMessage);
+}
 
-  await thinking.edit(reply);
+await thinking.edit(reply);
+
 });
 
-// ===== LOGIN =====
 client.login(process.env.DISCORD_TOKEN);
