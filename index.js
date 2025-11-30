@@ -13,84 +13,54 @@ const client = new Client({
 
 const PREFIX = '!ai';
 
-client.once('ready', () => {
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+client.once('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  console.log(`✅ API base: ${process.env.RYZNN_API_BASE}`);
-  console.log(`✅ Model: ${process.env.RYZNN_MODEL}`);
+  console.log('✅ Using Direct Gemini API');
 });
 
-function getChatCompletionsUrl() {
-  const base = (process.env.RYZNN_API_BASE || 'https://ai.ryznn.xyz').replace(/\/+$/, '');
-  return `${base}/v1/chat/completions`;
-}
-
-async function callRyznnAPI(userMessage, userId) {
-  const url = getChatCompletionsUrl();
-
+async function callGeminiAPI(userMessage) {
   try {
-    console.log('🔹 Sending to API:', {
-      url,
-      model: process.env.RYZNN_MODEL,
-      message: userMessage,
-      userId
-    });
-
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-
-    if (process.env.RYZNN_API_KEY) {
-      headers['Authorization'] = `Bearer ${process.env.RYZNN_API_KEY}`;
-    }
-
     const response = await axios.post(
-      url,
+      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
       {
-        model: process.env.RYZNN_MODEL,
-        messages: [
+        contents: [
           {
-            role: 'system',
-            content: 'You are Fluffy, a friendly Discord chatbot.'
-          },
-          {
-            role: 'user',
-            content: userMessage
+            parts: [
+              { text: userMessage }
+            ]
           }
-        ],
-        // optional: for OpenAI-compatible APIs
-        user: userId
+        ]
       },
       {
-        headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         timeout: 20000
       }
     );
 
-    console.log('✅ API Status:', response.status);
-    console.log('✅ API Response:', JSON.stringify(response.data, null, 2));
-
-    const choice = response.data?.choices?.[0];
-    const reply = choice?.message?.content?.trim();
+    const reply =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!reply) {
-      return '⚠️ API responded but I couldn’t find any message content.';
+      return '⚠️ Gemini responded but returned empty text.';
     }
 
     return reply;
+
   } catch (error) {
-    console.error('❌ Error calling Ryznn API:');
-    console.error('URL:', url);
-    console.error('Status:', error.response?.status);
-    console.error('Response:', error.response?.data);
-    console.error('Message:', error.message);
+    console.error('❌ Gemini API Error:');
+    console.error(error.response?.data || error.message);
 
-    const status = error.response?.status ?? 'no response';
-    const body =
-      typeof error.response?.data === 'string'
-        ? error.response.data
-        : JSON.stringify(error.response?.data || {}, null, 2);
+    const errMsg =
+      error.response?.data?.error?.message ||
+      'Unknown Gemini API error';
 
-    return `API error (${status}):\n\`\`\`\n${body}\n\`\`\``;
+    return `❌ Gemini API Error:\n\`\`\`${errMsg}\`\`\``;
   }
 }
 
@@ -100,12 +70,12 @@ client.on('messageCreate', async (message) => {
 
   const userMessage = message.content.slice(PREFIX.length).trim();
   if (!userMessage) {
-    return message.reply('Type something after `!ai`, bro 😼');
+    return message.reply('Type something after `!ai` 😼');
   }
 
-  const thinking = await message.reply('🧠 Talking to the AI…');
+  const thinking = await message.reply('✨ Asking Gemini...');
 
-  const reply = await callRyznnAPI(userMessage, message.author.id);
+  const reply = await callGeminiAPI(userMessage);
 
   await thinking.edit(reply);
 });
