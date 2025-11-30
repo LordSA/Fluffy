@@ -1,5 +1,7 @@
-import { Client, GatewayIntentBits } from "discord.js";
-import { handleMessage } from "./plugins/chatbot.js";
+import "dotenv/config";
+import { createClient } from "./core/client.js";
+import { registerPlugins } from "./core/loader.js";
+import { chatPlugin } from "./plugins/chatbot.js";
 import { config } from "./config.js";
 
 const client = new Client({
@@ -9,6 +11,8 @@ const client = new Client({
     GatewayIntentBits.MessageContent
   ]
 });
+registerPlugins(client, [chatPlugin]);
+client.login(config.discordToken);
 
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
