@@ -19,10 +19,14 @@ class FluffyClient extends Client {
         this.commands = new Collection();
         this.config = require('../config');
         
+        // --- Music Player Setup ---
         this.player = new Player(this);
 
-        this.player.extractors.loadDefault((ext) => ext !== 'YouTubeExtractor');
+        // --- FIX: Load ALL Extractors (YouTube, Spotify, SoundCloud) ---
+        // This fixes the "No results found" error
+        this.player.extractors.loadDefault();
 
+        // --- Prevent Crashes ---
         this.player.events.on('error', (queue, error) => {
             console.log(`[Player Error] ${error.message}`);
         });
