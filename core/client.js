@@ -1,6 +1,5 @@
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
-const { YoutubeiExtractor } = require("discord-player-youtubei");
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
@@ -23,7 +22,6 @@ class FluffyClient extends Client {
         this.player = new Player(this);
 
         this.player.extractors.loadDefault((ext) => ext !== 'YouTubeExtractor');
-        this.player.extractors.register(YoutubeiExtractor, {});
 
         this.player.events.on('error', (queue, error) => {
             console.log(`[Player Error] ${error.message}`);
@@ -63,7 +61,7 @@ class FluffyClient extends Client {
         const files = fs.readdirSync(path.join(__dirname, '../events')).filter(f => f.endsWith('.js'));
         for (const file of files) {
             const event = require(`../events/${file}`);
-            const eventName = file.split('.')[0];
+            const eventName = file.split('.')[0] === 'ready' ? 'clientReady' : file.split('.')[0];
             this.on(eventName, event.bind(null, this));
         }
     }
