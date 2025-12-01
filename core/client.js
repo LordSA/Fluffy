@@ -1,5 +1,6 @@
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
+const { YoutubeiExtractor } = require("discord-player-youtubei");
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
@@ -20,7 +21,9 @@ class FluffyClient extends Client {
         this.config = require('../config');
         
         this.player = new Player(this);
-        this.player.extractors.loadDefault();
+
+        this.player.extractors.loadDefault((ext) => ext !== 'YouTubeExtractor');
+        this.player.extractors.register(YoutubeiExtractor, {});
 
         this.player.events.on('error', (queue, error) => {
             console.log(`[Player Error] ${error.message}`);
