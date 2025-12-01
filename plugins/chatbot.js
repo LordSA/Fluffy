@@ -1,77 +1,101 @@
-import { askGemini } from "../services/gemini.js";
-import { getState } from "../state/channelState.js";
 import { config } from "../config.js";
+import { askGemini } from "../services/gemini.js";
+import { getChannelState } from "../state/channelState.js";
+
+const PREFIX = config.commandPrefix;
+
+async function callGeminiForChannel(state, userMessage) {
+  const prompt = `
+Persona:
+${state.persona}
+
+Current emotional mood: ${state.mood}.
+Reflect this mood in your tone (but stay respectful and helpful).
+
+User message:
+${userMessage}
+`.trim();
+
+  return askGemini(prompt);
+}
 
 export const chatPlugin = {
   name: "chat",
 
   onReady(client) {
-    console.log(`✅ chatPlugin ready for ${client.user.tag}`);
+    console.log(`Chat plugin ready for ${client.user.tag}`);
   },
 
   async onMessage(client, message) {
-    const state = getState(message.channel.id);
+    const content = message.content.trim();
+    const channelId = message.channel.id;
+    const state = getChannelState(channelId);
 
-    // Commands
-    if (message.content.startsWith(config.commandPrefix)) {
-      const [cmdRaw, ...args] = message.content
-        .slice(config.commandPrefix.length)
-        .trim()
-        .split(/\s+/);
+    if (!content.startsWith(PREFIX)) {
+      if (!state.active) return;
+      if (!content) return;
 
-      const cmd = cmdRaw.toLowerCase();
-      const text = args.join(" ").trim();
-
-      if (cmd === "chaton") {
-        state.active = true;
-        return message.reply("✅ Chat mode ON in this channel.");
-      }
-
-      if (cmd === "chatoff") {
-        state.active = false;
-        return message.reply("🛑 Chat mode OFF in this channel.");
-      }
-
-      if (cmd === "mood") {
-        if (!text) {
-          return message.reply(`Current mood: **${state.mood}**`);
-        }
-        state.mood = text;
-        return message.reply(`💖 Mood set to **${state.mood}**`);
-      }
-
-      if (cmd === "persona") {
-        if (!text) {
-          return message.reply("Give me a personality description.");
-        }
-        state.persona = text;
-        return message.reply("🧠 Persona updated for this channel!");
-      }
-
-      if (cmd === "status") {
-        return message.reply(
-          `Active: ${state.active}\nMood: ${state.mood}\nPersona: ${state.persona}`
-        );
-      }
-
+      const thinking = await message.reply("💭 feeling things & thinking...");
+      const reply = await callGeminiForChannel(state, content);
+      await thinking.edit(reply);
       return;
     }
-    if (!state.active) return;
 
-    const prompt = `
-Persona: ${state.persona}
-Mood: ${state.mood}
-User: ${message.content}
-`.trim();
+    const [cmdRaw, ...rest] = content
+      .slice(PREFIX.length)
+      .trim()
+      .split(/\s+/);
 
-    const thinking = await message.reply("💭 feeling things & thinking...");
+    const cmd = cmdRaw.toLowerCase();
+    const argsText = rest.join(" ").trim();
 
-    try {
-      const reply = await askGemini(prompt);
-      await thinking.edit(reply);
-    } catch (e) {
-      console.error(e);
-      await thinking.edit("❌ Gemini API error.");
+    if (cmd === "music" || cmd === "m") {
+      return;
+    }
+
+    if (cmd === "start") {
+      state.active = true;
+      await message.reply(
+        "✨ Chat mode ON in this channel. I will reply to messages here until you type `!stop`."
+      );
+      return;
+    }
+
+    if (cmd === "stop") {
+      state.active = false;
+      await message.reply("🛑 Chat mode OFF in this channel.");
+      return;
+    }
+
+    if (cmd === "mood") {
+      if (!argsText) {
+        await message.reply(
+          `Current mood: ${state.mood}. Set a new mood like: \`!mood cozy\` or \`!mood chaotic gremlin\`.`
+        );
+        return;
+      }
+      state.mood = argsText;
+      await message.reply(`💖 Mood updated, I now feel ${state.mood}.`);
+      return;
+    }
+
+    if (cmd === "persona") {
+      if (!argsText) {
+        await message.reply(
+          "Give me a new personality description. Example: `!persona You are a chill anime-obsessed senpai who gives coding advice.`"
+        );
+        return;
+      }
+      state.persona = argsText;
+      await message.reply("🧠 Personality updated for this channel.");
+      return;
+    }
+
+    if (cmd === "status") {
+      await message.reply(
+        `📊 Channel Chat Status\nActive: ${state.active ? "YES" : "NO"}\nMood: ${state.mood}\nPersona: ${state.persona}`
+      );
+      return;
     }
   }
 };

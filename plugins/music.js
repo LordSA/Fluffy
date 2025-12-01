@@ -7,7 +7,9 @@ import {
   entersState
 } from "@discordjs/voice";
 import play from "play-dl";
+import { config } from "../config.js";
 
+const PREFIX = config.commandPrefix;
 const guildQueues = new Map();
 
 function getGuildQueue(guildId) {
@@ -29,7 +31,7 @@ async function connectToChannel(voiceChannel) {
     adapterCreator: voiceChannel.guild.voiceAdapterCreator
   });
 
-  await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+  await entersState(connection, VoiceConnectionStatus.Ready, 20000);
   return connection;
 }
 
@@ -42,7 +44,7 @@ async function playNext(guildId, textChannel) {
       data.connection.destroy();
       data.connection = null;
     }
-    await textChannel.send("✅ Queue ended, leaving voice channel.");
+    await textChannel.send("✅ Music queue ended, leaving voice channel.");
     return;
   }
 
@@ -57,130 +59,164 @@ async function playNext(guildId, textChannel) {
     data.player.play(resource);
     data.playing = true;
 
-    await textChannel.send(`🎶 Now playing: **${track.title}**`);
-
+    await textChannel.send(`🎶 Now playing: ${track.title}`);
   } catch (err) {
     console.error("Error while playing track:", err);
     await textChannel.send("⚠️ Failed to play that track, skipping...");
     data.queue.shift();
-    return playNext(guildId, textChannel);
+    await playNext(guildId, textChannel);
   }
 }
 
-export function isMusicCommand(cmd) {
-  return ["play", "skip", "stop", "leave", "queue"].includes(cmd);
-}
+export const musicPlugin = {
+  name: "music",
 
-export async function handleMusicCommand(message, cmd, args) {
-  const { guild, member, channel } = message;
-  if (!guild) return;
+  onReady(client) {
+    console.log(`Music plugin ready for ${client.user.tag}`);
+  },
 
-  const data = getGuildQueue(guild.id);
+  async onMessage(client, message) {
+    const content = message.content.trim();
+    if (!content.startsWith(PREFIX)) return;
 
-  if (cmd === "play") {
-    const query = args.join(" ").trim();
-    if (!query) {
-      return message.reply("Usage: `!play <YouTube URL or search query>`");
+    const [cmdRaw, ...rest] = content
+      .slice(PREFIX.length)
+      .trim()
+      .split(/\s+/);
+
+    const cmd = cmdRaw.toLowerCase();
+    if (cmd !== "music" && cmd !== "m") return;
+
+    const subcmdRaw = rest[0];
+    const args = rest.slice(1);
+    if (!subcmdRaw) {
+      await message.reply(
+        "Music usage:\n`!music play <url or search>`\n`!music skip`\n`!music stop`\n`!music leave`\n`!music queue`"
+      );
+      return;
     }
 
-    const voiceChannel = member?.voice?.channel;
-    if (!voiceChannel) {
-      return message.reply("You must be in a voice channel first.");
-    }
+    const subcmd = subcmdRaw.toLowerCase();
+    const guild = message.guild;
+    const member = message.member;
+    const channel = message.channel;
 
-    if (!data.connection) {
-      try {
-        data.connection = await connectToChannel(voiceChannel);
-        data.connection.subscribe(data.player);
+    if (!guild) return;
 
-        data.connection.on("stateChange", (oldState, newState) => {
-          console.log(
-            `Voice connection state change: ${oldState.status} -> ${newState.status}`
-          );
-        });
+    const data = getGuildQueue(guild.id);
 
-        data.player.on("stateChange", (oldState, newState) => {
-          if (
-            oldState.status === AudioPlayerStatus.Playing &&
-            newState.status === AudioPlayerStatus.Idle
-          ) {
-            data.queue.shift();
-            playNext(guild.id, channel);
-          }
-        });
-      } catch (err) {
-        console.error("Error joining voice channel:", err);
-        return message.reply("Failed to join voice channel.");
+    if (subcmd === "play") {
+      const query = args.join(" ").trim();
+      if (!query) {
+        await message.reply(
+          "Usage: `!music play <YouTube URL or search query>`"
+        );
+        return;
       }
-    }
 
-    let videoInfo;
+      const voiceChannel = member?.voice?.channel;
+      if (!voiceChannel) {
+        await message.reply("You must be in a voice channel first.");
+        return;
+      }
 
-    try {
-      if (play.yt_validate(query) === "video") {
-        videoInfo = await play.video_info(query);
-      } else {
-        const results = await play.search(query, { limit: 1 });
-        if (!results.length) {
-          return message.reply("No results found for that query.");
+      if (!data.connection) {
+        try {
+          data.connection = await connectToChannel(voiceChannel);
+          data.connection.subscribe(data.player);
+
+          data.player.on("stateChange", (oldState, newState) => {
+            if (
+              oldState.status === AudioPlayerStatus.Playing &&
+              newState.status === AudioPlayerStatus.Idle
+            ) {
+              data.queue.shift();
+              playNext(guild.id, channel);
+            }
+          });
+        } catch (err) {
+          console.error("Error joining voice channel:", err);
+          await message.reply("Failed to join voice channel.");
+          return;
         }
-        videoInfo = results[0];
       }
-    } catch (err) {
-      console.error("Error fetching YouTube info:", err);
-      return message.reply("Failed to fetch video info.");
+
+      let videoInfo;
+
+      try {
+        if (play.yt_validate(query) === "video") {
+          videoInfo = await play.video_info(query);
+        } else {
+          const results = await play.search(query, { limit: 1 });
+          if (!results.length) {
+            await message.reply("No results found for that query.");
+            return;
+          }
+          videoInfo = results[0];
+        }
+      } catch (err) {
+        console.error("Error fetching video info:", err);
+        await message.reply("Failed to fetch video info.");
+        return;
+      }
+
+      data.queue.push({
+        url: videoInfo.url,
+        title: videoInfo.title
+      });
+
+      if (!data.playing) {
+        await playNext(guild.id, channel);
+      } else {
+        await message.reply(`✅ Added to queue: ${videoInfo.title}`);
+      }
+
+      return;
     }
 
-    data.queue.push({
-      url: videoInfo.url,
-      title: videoInfo.title
-    });
-
-    if (!data.playing) {
-      await playNext(guild.id, channel);
-    } else {
-      await message.reply(`✅ Added to queue: **${videoInfo.title}**`);
+    if (subcmd === "skip") {
+      if (!data.playing || data.queue.length === 0) {
+        await message.reply("Nothing is currently playing.");
+        return;
+      }
+      data.player.stop();
+      await message.reply("⏭️ Skipped current track.");
+      return;
     }
 
-    return;
+    if (subcmd === "stop") {
+      data.queue = [];
+      data.player.stop();
+      data.playing = false;
+      await message.reply("⏹️ Stopped music and cleared the queue.");
+      return;
+    }
+
+    if (subcmd === "leave") {
+      if (data.connection) {
+        data.connection.destroy();
+        data.connection = null;
+      }
+      data.queue = [];
+      data.playing = false;
+      await message.reply("👋 Left the voice channel.");
+      return;
+    }
+
+    if (subcmd === "queue") {
+      if (!data.queue.length) {
+        await message.reply("Queue is empty.");
+        return;
+      }
+      const list = data.queue
+        .map((track, i) => `${i === 0 ? "▶️" : `${i}.`} ${track.title}`)
+        .join("\n");
+      await message.reply(`📜 Music queue:\n${list}`);
+      return;
+    }
+
+    await message.reply(
+      "Unknown music command. Try: `!music play`, `!music skip`, `!music stop`, `!music leave`, `!music queue`."
+    );
   }
-
-  if (cmd === "skip") {
-    if (!data.playing || data.queue.length === 0) {
-      return message.reply("Nothing is currently playing.");
-    }
-    data.player.stop();
-    return message.reply("⏭️ Skipped.");
-  }
-
-  if (cmd === "stop") {
-    data.queue = [];
-    data.player.stop();
-    if (data.connection) {
-      data.connection.destroy();
-      data.connection = null;
-    }
-    data.playing = false;
-    return message.reply("⏹️ Stopped and cleared the queue.");
-  }
-
-  if (cmd === "leave") {
-    if (data.connection) {
-      data.connection.destroy();
-      data.connection = null;
-    }
-    data.queue = [];
-    data.playing = false;
-    return message.reply("👋 Left the voice channel.");
-  }
-
-  if (cmd === "queue") {
-    if (!data.queue.length) {
-      return message.reply("Queue is empty.");
-    }
-    const list = data.queue
-      .map((track, i) => `${i === 0 ? "▶️" : `${i}.`} ${track.title}`)
-      .join("\n");
-    return message.reply(`📜 **Queue:**\n${list}`);
-  }
-}
+};
