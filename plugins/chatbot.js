@@ -1,101 +1,72 @@
-import { config } from "../config.js";
-import { askGemini } from "../services/gemini.js";
-import { getChannelState } from "../state/channelState.js";
+const config = require('../config');
+const { askGemini } = require('../services/gemini');
+const { getChannelState } = require('../state/channelState');
 
-const PREFIX = config.commandPrefix;
+module.exports = {
+    name: "chat",
+    onReady: (client) => {
+        console.log(`[Chat Plugin] Ready and listening as ${client.user.tag}`);
+    },
 
-async function callGeminiForChannel(state, userMessage) {
-  const prompt = `
-Persona:
-${state.persona}
+    onMessage: async (client, message) => {
+        if (message.author.bot) return;
 
-Current emotional mood: ${state.mood}.
-Reflect this mood in your tone (but stay respectful and helpful).
+        const content = message.content.trim();
+        const channelId = message.channel.id;
+        const state = getChannelState(channelId);
 
-User message:
-${userMessage}
+        const PREFIX = config.PREFIX;
+        if (!content.startsWith(PREFIX)) {
+            if (!state.active) return;
+            if (!content) return;
+            await message.channel.sendTyping();
+
+            try {
+                const prompt = `
+Persona: ${state.persona}
+Current Mood: ${state.mood}
+User Message: ${content}
 `.trim();
 
-  return askGemini(prompt);
-}
+                const reply = await askGemini(prompt);
+                await message.reply(reply);
+            } catch (err) {
+                console.error("Gemini Error:", err);
+                await message.reply("⚠️ *I'm having trouble thinking right now...*");
+            }
+            return;
+        }
+        const args = content.slice(PREFIX.length).trim().split(/\s+/);
+        const cmd = args.shift().toLowerCase();
+        const argsText = args.join(" ").trim();
 
-export const chatPlugin = {
-  name: "chat",
+        if (['play', 'stop', 'skip', 'queue', 'music'].includes(cmd)) return;
 
-  onReady(client) {
-    console.log(`Chat plugin ready for ${client.user.tag}`);
-  },
+        switch (cmd) {
+            case "chat":
+            case "c":
+                if (args[0] === "start") {
+                    state.active = true;
+                    return message.reply("✨ **Chat Mode ON.** I am listening in this channel!");
+                }
+                if (args[0] === "stop") {
+                    state.active = false;
+                    return message.reply("🛑 **Chat Mode OFF.** I'll stop listening.");
+                }
+                break;
 
-  async onMessage(client, message) {
-    const content = message.content.trim();
-    const channelId = message.channel.id;
-    const state = getChannelState(channelId);
+            case "mood":
+                if (!argsText) return message.reply(`Current mood: **${state.mood}**`);
+                state.mood = argsText;
+                return message.reply(`💖 Mood set to: **${state.mood}**`);
 
-    if (!content.startsWith(PREFIX)) {
-      if (!state.active) return;
-      if (!content) return;
+            case "persona":
+                if (!argsText) return message.reply(`Current persona: \`${state.persona}\``);
+                state.persona = argsText;
+                return message.reply("🧠 **Persona updated!**");
 
-      const thinking = await message.reply("💭 feeling things & thinking...");
-      const reply = await callGeminiForChannel(state, content);
-      await thinking.edit(reply);
-      return;
+            case "status":
+                return message.reply(`📊 **Status:**\nActive: ${state.active}\nMood: ${state.mood}`);
+        }
     }
-
-    const [cmdRaw, ...rest] = content
-      .slice(PREFIX.length)
-      .trim()
-      .split(/\s+/);
-
-    const cmd = cmdRaw.toLowerCase();
-    const argsText = rest.join(" ").trim();
-
-    if (cmd === "music" || cmd === "m") {
-      return;
-    }
-
-    if (cmd === "start") {
-      state.active = true;
-      await message.reply(
-        "✨ Chat mode ON in this channel. I will reply to messages here until you type `!stop`."
-      );
-      return;
-    }
-
-    if (cmd === "stop") {
-      state.active = false;
-      await message.reply("🛑 Chat mode OFF in this channel.");
-      return;
-    }
-
-    if (cmd === "mood") {
-      if (!argsText) {
-        await message.reply(
-          `Current mood: ${state.mood}. Set a new mood like: \`!mood cozy\` or \`!mood chaotic gremlin\`.`
-        );
-        return;
-      }
-      state.mood = argsText;
-      await message.reply(`💖 Mood updated, I now feel ${state.mood}.`);
-      return;
-    }
-
-    if (cmd === "persona") {
-      if (!argsText) {
-        await message.reply(
-          "Give me a new personality description. Example: `!persona You are a chill anime-obsessed senpai who gives coding advice.`"
-        );
-        return;
-      }
-      state.persona = argsText;
-      await message.reply("🧠 Personality updated for this channel.");
-      return;
-    }
-
-    if (cmd === "status") {
-      await message.reply(
-        `📊 Channel Chat Status\nActive: ${state.active ? "YES" : "NO"}\nMood: ${state.mood}\nPersona: ${state.persona}`
-      );
-      return;
-    }
-  }
 };

@@ -1,30 +1,17 @@
-import axios from "axios";
-import { config } from "../config.js";
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-
-export async function askGemini(prompt) {
-  const response = await axios.post(
-    `${GEMINI_URL}?key=${config.geminiApiKey}`,
-    {
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }]
-        }
-      ]
-    },
-    {
-      headers: { "Content-Type": "application/json" },
-      timeout: 20000
+async function askGemini(prompt) {
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+    } catch (error) {
+        console.error("Gemini API Error:", error);
+        return "Sorry, my brain is offline.";
     }
-  );
-
-  const text =
-    response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-  return (
-    text || "⚠️ Gemini responded but did not return any text content."
-  );
 }
+
+module.exports = { askGemini };

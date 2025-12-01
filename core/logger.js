@@ -1,15 +1,12 @@
-function log(level, ...args) {
-  const time = new Date().toISOString();
-  console.log(`[${time}] [${level}]`, ...args);
-}
+const moment = require('moment');
 
-export const logger = {
-  info: (...args) => log("INFO", ...args),
-  warn: (...args) => log("WARN", ...args),
-  error: (...args) => log("ERROR", ...args),
-  debug: (...args) => {
-    if (process.env.NODE_ENV === "development") {
-      log("DEBUG", ...args);
+exports.log = (content, type = 'info') => {
+    const timestamp = `[${moment().format('YYYY-MM-DD HH:mm:ss')}]`;
+    switch (type) {
+        case 'info': console.log(`${timestamp} [INFO] ${content}`); break;
+        case 'warn': console.log(`${timestamp} [WARN] ${content}`); break;
+        case 'error': console.error(`${timestamp} [ERROR] ${content}`); break;
+        case 'cmd': console.log(`${timestamp} [CMD] ${content}`); break;
+        case 'ready': console.log(`${timestamp} [READY] ${content}`); break;
     }
-  }
 };

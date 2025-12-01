@@ -1,18 +1,7 @@
-import "dotenv/config";
-import { createClient } from "./core/client.js";
-import { loadPlugins } from "./core/loader.js";
-import { logger } from "./core/logger.js";
-import { chatPlugin } from "./plugins/chatbot.js";
-import { musicPlugin } from "./plugins/music.js";
-import { config } from "./config.js";
-
-const client = createClient();
-
-loadPlugins(client, [chatPlugin, musicPlugin]);
-
-client.once("ready", () => {
-  logger.info(`Logged in as ${client.user.tag}`);
-  logger.info("Fluffy Discord MD ready with chat and music.");
+const ErenClient = require('./core/client');
+const client = new ErenClient();
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-client.login(config.discordToken);
+client.start();

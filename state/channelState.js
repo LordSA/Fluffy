@@ -1,15 +1,16 @@
-import { config } from "../config.js";
+const channelStates = new Map();
 
-const state = new Map();
+const defaultState = {
+    active: false,
+    mood: "helpful and friendly",
+    persona: "You are a helpful Discord assistant."
+};
 
-export function getChannelState(channelId) {
-  if (!state.has(channelId)) {
-    state.set(channelId, {
-      active: false,
-      mood: config.defaultMood,
-      persona:
-        "You are Fluffy, an emotionally expressive, caring, slightly chaotic AI friend on Discord. You talk in a casual Gen Z style, but stay respectful and helpful."
-    });
-  }
-  return state.get(channelId);
+function getChannelState(channelId) {
+    if (!channelStates.has(channelId)) {
+        channelStates.set(channelId, { ...defaultState });
+    }
+    return channelStates.get(channelId);
 }
+
+module.exports = { getChannelState };
