@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "pm2 start index.js --name 'Fluffy' --watch"
+    "start": "pm2 start index.js --name 'fluffy' --watch",
+    "stop": "pm2 stop Fluffy"
   },
   "dependencies": {
     "discord.js": "^14.14.0",
     "discord-player": "^6.6.0",
     "@discord-player/extractor": "^4.4.0",
     "@discordjs/voice": "^0.16.0",
+    "play-dl": "^1.9.6",
     "@google/generative-ai": "^0.1.0",
     "mongoose": "^8.0.0",
     "discord-tts": "^1.2.0",

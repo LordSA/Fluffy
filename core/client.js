@@ -22,6 +22,14 @@ class FluffyClient extends Client {
         this.player = new Player(this);
         this.player.extractors.loadDefault();
 
+        this.player.events.on('error', (queue, error) => {
+            console.log(`[Player Error] ${error.message}`);
+        });
+
+        this.player.events.on('playerError', (queue, error) => {
+            console.log(`[Connection Error] ${error.message}`);
+        });
+
         if (this.config.MONGO_URL) {
             mongoose.connect(this.config.MONGO_URL)
                 .then(() => console.log('Database Connected'))
