@@ -1,4 +1,4 @@
-const { useMainPlayer } = require('discord-player');
+const { useMainPlayer, QueryType } = require('discord-player');
 
 module.exports = {
     name: 'play',
@@ -12,7 +12,8 @@ module.exports = {
 
         try {
             const { track } = await player.play(channel, args.join(" "), {
-                nodeOptions: { metadata: message }
+                nodeOptions: { metadata: message },
+                searchEngine: QueryType.YOUTUBE_SEARCH
             });
             return message.reply(`Now Playing: ${track.title}`);
         } catch (e) {

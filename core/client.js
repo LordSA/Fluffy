@@ -1,5 +1,6 @@
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
+const { DefaultExtractors } = require('@discord-player/extractor');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
@@ -19,14 +20,9 @@ class FluffyClient extends Client {
         this.commands = new Collection();
         this.config = require('../config');
         
-        // --- Music Player Setup ---
         this.player = new Player(this);
+        this.player.extractors.loadMulti(DefaultExtractors);
 
-        // --- FIX: Load ALL Extractors (YouTube, Spotify, SoundCloud) ---
-        // This fixes the "No results found" error
-        this.player.extractors.loadDefault();
-
-        // --- Prevent Crashes ---
         this.player.events.on('error', (queue, error) => {
             console.log(`[Player Error] ${error.message}`);
         });
