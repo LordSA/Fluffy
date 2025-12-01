@@ -1,7 +1,6 @@
-const ErenClient = require('./core/client');
-const client = new ErenClient();
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+const FluffyClient = require('./core/client');
+const client = new FluffyClient();
 
 client.start();
+
+process.on('unhandledRejection', (err) => console.error(err));

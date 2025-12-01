@@ -1,73 +1,67 @@
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
-const Logger = require('./Logger');
 
-class ErenClient extends Client {
+class FluffyClient extends Client {
     constructor() {
         super({
             intents: [
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildVoiceStates,
                 GatewayIntentBits.GuildMessages,
-                GatewayIntentBits.MessageContent
+                GatewayIntentBits.MessageContent,
+                GatewayIntentBits.GuildMembers
             ]
         });
 
         this.commands = new Collection();
         this.config = require('../config');
+        
         this.player = new Player(this);
         this.player.extractors.loadDefault();
-        this.player.events.on('error', (queue, error) => {
-            Logger.log(`[Music] Error: ${error.message}`, 'error');
-        });
-    }
-    loadPlugins() {
-        const pluginsPath = path.join(__dirname, '../plugins');
-        const folders = fs.readdirSync(pluginsPath);
 
-        for (const folder of folders) {
-            const folderPath = path.join(pluginsPath, folder);
-            if (folderPath.endsWith('.js')) {
-                this.loadPluginFile(folderPath);
-                continue;
-            }
-            if (fs.lstatSync(folderPath).isDirectory()) {
-                const files = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-                for (const file of files) {
-                    this.loadPluginFile(path.join(folderPath, file));
-                }
-            }
+        if (this.config.MONGO_URL) {
+            mongoose.connect(this.config.MONGO_URL)
+                .then(() => console.log('Database Connected'))
+                .catch(err => console.error(err));
         }
     }
 
-    loadPluginFile(filePath) {
-        try {
-            const plugin = require(filePath);
-            if (plugin.commands) {
-                plugin.commands.forEach(cmd => {
-                    this.commands.set(cmd.name, cmd);
-                    Logger.log(`Loaded Command: ${cmd.name}`, 'cmd');
-                });
+    loadPlugins() {
+        const readCommands = (dir) => {
+            const files = fs.readdirSync(path.join(__dirname, dir));
+            for (const file of files) {
+                const stat = fs.lstatSync(path.join(__dirname, dir, file));
+                if (stat.isDirectory()) {
+                    readCommands(path.join(dir, file));
+                } else if (file.endsWith('.js')) {
+                    const cmd = require(path.join(__dirname, dir, file));
+                    if (cmd.name) {
+                        this.commands.set(cmd.name, cmd);
+                        console.log(`Loaded: ${cmd.name}`);
+                    }
+                }
             }
-            if (plugin.onMessage) {
-                this.on('messageCreate', (msg) => plugin.onMessage(this, msg));
-            }
-            if (plugin.onReady) {
-                this.on('ready', () => plugin.onReady(this));
-            }
+        };
+        readCommands('../plugins');
+    }
 
-        } catch (e) {
-            Logger.log(`Failed to load ${filePath}: ${e.message}`, 'error');
+    loadEvents() {
+        const files = fs.readdirSync(path.join(__dirname, '../events')).filter(f => f.endsWith('.js'));
+        for (const file of files) {
+            const event = require(`../events/${file}`);
+            const eventName = file.split('.')[0];
+            this.on(eventName, event.bind(null, this));
         }
     }
 
     async start() {
         this.loadPlugins();
+        this.loadEvents();
         await this.login(this.config.TOKEN);
-        Logger.log(`Logged in as ${this.user.tag}`, 'ready');
     }
 }
 
-module.exports = ErenClient;
+module.exports = FluffyClient;
