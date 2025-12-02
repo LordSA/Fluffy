@@ -1,6 +1,10 @@
-const FluffyClient = require('./core/client');
-const client = new FluffyClient();
+const sodium = require('libsodium-wrappers');
+(async () => {
+    await sodium.ready;
+    const FluffyClient = require('./core/client');
+    const client = new FluffyClient();
 
-client.start();
+    client.start();
 
-process.on('unhandledRejection', (err) => console.error(err));
+    process.on('unhandledRejection', (err) => console.error(err));
+})();
