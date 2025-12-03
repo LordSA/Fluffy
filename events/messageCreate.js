@@ -37,7 +37,7 @@ module.exports = async (client, message) => {
         try {
             message.channel.sendTyping();
             const genAI = new GoogleGenerativeAI(client.config.AI.GeminiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
             const result = await model.generateContent(message.content);
             const response = await result.response;
             const text = response.text();

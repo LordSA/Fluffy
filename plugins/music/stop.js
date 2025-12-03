@@ -1,24 +1,15 @@
-const { useQueue } = require("discord-player");
+const { deleteQueue } = require('../../utils/queue');
 
 module.exports = {
     name: 'stop',
     description: 'Stops music and clears queue',
     async execute(message, args, client) {
-        const { channel } = message.member.voice;
-        if (!channel) return message.reply('❌ You must be in the voice channel.');
-
-        try {
-            if (client.config.MUSIC.ENGINE === 'distube') {
-                client.distube.stop(message);
-                message.reply('mj🛑 **DisTube**: Stopped music.');
-            } else {
-                const queue = useQueue(message.guild.id);
-                if (queue) queue.delete();
-                message.reply('🛑 **Discord-Player**: Stopped music.');
-            }
-            client.logger.info(`Music Stopped by ${message.author.tag}`);
-        } catch (e) {
-            message.reply('❌ No music is playing.');
+        if (client.config.Music.Engine === 'lavalink') {
+            const player = client.shoukaku.players.get(message.guild.id);
+            if (!player) return message.reply("❌ Nothing playing.");
+            player.destroy();
+            deleteQueue(message.guild.id);
+            message.reply('🛑 Stopped.');
         }
     }
 };

@@ -26,7 +26,6 @@ class Logger {
   }
 
   error(Text) {
-    let d = new Date();
     this.logger.log({ level: "error", message: Text });
     console.log(colors.red(`[ERROR] ${Text}`));
   }
