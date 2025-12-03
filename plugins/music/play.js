@@ -25,9 +25,30 @@ module.exports = {
                 if (!node) return message.channel.send('❌ Lavalink not ready.');
 
                 const result = await node.rest.resolve(query.startsWith('http') ? query : `ytsearch:${query}`);
-                if (!result || result.loadType === 'empty') return message.channel.send('❌ No results found.');
+                
+                if (!result || result.loadType === 'empty' || result.loadType === 'error') {
+                    return message.channel.send('❌ No results found.');
+                }
 
-                const track = result.tracks.shift();
+                let track;
+                
+                switch (result.loadType) {
+                    case 'track':
+                        track = result.data;
+                        break;
+                    case 'search':
+                        track = result.data[0];
+                        break;
+                    case 'playlist':
+                        track = result.data.tracks[0];
+                        message.channel.send(`⚠️ Playlists are not fully supported yet. Playing: **${result.data.info.name}**`);
+                        break;
+                    default:
+                        return message.channel.send('❌ Unknown load type.');
+                }
+
+                if (!track) return message.channel.send('❌ Failed to load track data.');
+
                 const q = getQueue(message.guild.id);
                 const isPlaying = q.current !== null;
 
@@ -53,10 +74,12 @@ module.exports = {
                     }
                     
                     queue.current = queue.songs.shift(); 
-                    await player.playTrack({ track: queue.current.track });
+                    await player.playTrack({ track: queue.current.encoded });
                     handleNowPlaying(client, player, queue.current, message.channel.id);
                 };
 
+                player.removeAllListeners();
+                
                 player.on('start', () => {}); 
                 player.on('end', () => playNext());
                 player.on('exception', () => playNext());
