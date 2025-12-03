@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "pm2 start index.js --name 'fluffy' --watch --ignore-watch='node_modules logs'",
-    "stop": "pm2 stop fluffy",
-    "logs": "pm2 logs fluffy",
-    "kill": "pm2 delete fluffy"
+    "start": "npm run start:lavalink && npm run start:bot",
+    "start:lavalink": "pm2 start java --name 'Lavalink' --cwd './Lavalink' -- -jar Lavalink.jar",
+    "start:bot": "pm2 start index.js --name 'fluffy' --watch --ignore-watch='node_modules logs'",
+    "stop": "pm2 delete fluffy && pm2 delete Lavalink",
+    "restart": "pm2 restart fluffy && pm2 restart Lavalink",
+    "logs": "pm2 logs fluffy"
   },
   "dependencies": {
     "@discord-player/extractor": "^4.4.0",

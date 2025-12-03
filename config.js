@@ -16,10 +16,10 @@ module.exports = {
         Engine: process.env.MUSIC_ENGINE || 'lavalink', 
         Lavalink: [
             {
-                name: "Trinium-v4",
-                url: "lavalink-v4.triniumhost.com:443",
-                auth: "free",
-                secure: true
+                name: "Local-Node",
+                url: "localhost:6777",   
+                auth: "passedaway", 
+                secure: false
             }
         ]
     },
