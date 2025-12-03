@@ -30,36 +30,51 @@ module.exports = {
                     return message.channel.send('❌ No results found.');
                 }
 
-                let track;
+                let rawTrack;
                 
                 switch (result.loadType) {
                     case 'track':
                     case 'TRACK_LOADED':
-                        track = result.data || result.tracks[0];
+                        rawTrack = result.data || result.tracks[0];
                         break;
                     case 'search':
                     case 'SEARCH_RESULT':
-                        track = Array.isArray(result.data) ? result.data[0] : result.tracks[0];
+                        rawTrack = Array.isArray(result.data) ? result.data[0] : result.tracks[0];
                         break;
                     case 'playlist':
                     case 'PLAYLIST_LOADED':
-                        track = Array.isArray(result.data.tracks) ? result.data.tracks[0] : result.tracks[0];
+                        rawTrack = Array.isArray(result.data.tracks) ? result.data.tracks[0] : result.tracks[0];
                         message.channel.send(`⚠️ Playlists are not fully supported yet. Playing first song.`);
                         break;
                     default:
-                        client.logger.error(`Unknown Load Type: ${result.loadType}`);
                         return message.channel.send('❌ Unknown load type.');
                 }
 
-                if (!track) return message.channel.send('❌ Failed to load track data.');
+                if (!rawTrack) return message.channel.send('❌ Failed to load track data.');
+
+                const cleanTrack = {
+                    encoded: rawTrack.encoded || rawTrack.track,
+                    info: {
+                        title: rawTrack.info.title,
+                        uri: rawTrack.info.uri,
+                        length: rawTrack.info.length,
+                        isStream: rawTrack.info.isStream,
+                        identifier: rawTrack.info.identifier
+                    }
+                };
+
+                if (!cleanTrack.encoded) {
+                    client.logger.error(`[Data Error] Track string missing: ${JSON.stringify(rawTrack)}`);
+                    return message.channel.send("❌ Error: Received invalid data from Lavalink Node.");
+                }
 
                 const q = getQueue(message.guild.id);
                 const isPlaying = q.current !== null;
 
-                addSong(message.guild.id, track);
+                addSong(message.guild.id, cleanTrack);
 
                 if (isPlaying) {
-                    return message.channel.send(`✅ Added to queue: **${track.info.title}**`);
+                    return message.channel.send(`✅ Added to queue: **${cleanTrack.info.title}**`);
                 }
 
                 const player = await client.shoukaku.joinVoiceChannel({
@@ -79,19 +94,8 @@ module.exports = {
                     
                     queue.current = queue.songs.shift(); 
                     
-                    const trackString = queue.current.encoded || queue.current.track;
-                    
-                    if (!trackString) {
-                        client.logger.error(`[Play Error] Invalid Track Data: ${JSON.stringify(queue.current)}`);
-                        message.channel.send("❌ Error: Track data is corrupted. Skipping...");
-                        playNext(); 
-                        return;
-                    }
-
-                    client.logger.info(`[Player] Playing Track: ${trackString.substring(0, 20)}...`);
-
                     try {
-                        await player.playTrack({ track: trackString });
+                        await player.playTrack({ track: queue.current.encoded });
                         handleNowPlaying(client, player, queue.current, message.channel.id);
                     } catch (e) {
                         client.logger.error(`[Lavalink Play Error] ${e.message}`);
