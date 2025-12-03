@@ -74,15 +74,29 @@ module.exports = {
                     }
                     
                     queue.current = queue.songs.shift(); 
-                    await player.playTrack({ track: queue.current.encoded });
+                    const trackString = queue.current.encoded || queue.current.track;
+                    
+                    if (!trackString) {
+                        client.logger.error(`[Play Error] Track string is missing! Data: ${JSON.stringify(queue.current)}`);
+                        message.channel.send("❌ Error: Could not play track (Invalid Data). Skipping...");
+                        playNext(); 
+                        return;
+                    }
+
+                    await player.playTrack({ track: trackString });
                     handleNowPlaying(client, player, queue.current, message.channel.id);
                 };
 
                 player.removeAllListeners();
                 
                 player.on('start', () => {}); 
-                player.on('end', () => playNext());
-                player.on('exception', () => playNext());
+                player.on('end', (data) => {
+                    if (data.reason === 'FINISHED' || data.reason === 'STOPPED') playNext();
+                });
+                player.on('exception', (e) => {
+                    client.logger.error(`Track Exception: ${JSON.stringify(e)}`);
+                    playNext();
+                });
 
                 playNext();
             } 
