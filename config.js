@@ -16,12 +16,6 @@ module.exports = {
         Engine: process.env.MUSIC_ENGINE || 'lavalink', 
         Lavalink: [
             {
-                name: "Lavalink-Host",
-                url: "v4.lavalink.host:443",
-                auth: "youshallnotpass",
-                secure: true
-            },
-            {
                 name: "Trinium-v4",
                 url: "lavalink-v4.triniumhost.com:443",
                 auth: "free",
