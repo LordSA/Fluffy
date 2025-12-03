@@ -7,6 +7,7 @@ const { SpotifyPlugin } = require('@distube/spotify');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
+const { Shoukaku, Connectors } = require('shoukaku');
 const fs = require('fs');
 const ffmpegPath = require('ffmpeg-static');
 process.env.FFMPEG_PATH = ffmpegPath;
@@ -45,6 +46,18 @@ if (config.MUSIC.ENGINE === 'distube') {
         ]
     });
     logger.info('System: DisTube Engine Initialized');
+} else if (config.MUSIC.ENGINE === 'lavalink') {
+    client.shoukaku = new Shoukaku(new Connectors.DiscordJS(client), config.MUSIC.LAVALINK, {
+        moveOnDisconnect: false,
+        resume: false,
+        reconnectTries: 5,
+        restTimeout: 10000
+    });
+    
+    client.shoukaku.on('error', (_, error) => logger.error(`Lavalink Error: ${error}`));
+    client.shoukaku.on('ready', (name) => logger.info(`Lavalink Node ${name} is ready`));
+    
+    logger.info('System: Lavalink Engine Initialized');
 } else {
     client.player = new Player(client);
     client.player.extractors.loadMulti(DefaultExtractors);

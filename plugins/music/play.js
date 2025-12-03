@@ -18,15 +18,30 @@ module.exports = {
 
         try {
             const searchMsg = await message.reply(`🔍 **${client.config.MUSIC.ENGINE === 'distube' ? 'DisTube' : 'Discord-Player'}**: Searching for \`${query}\`...`);
+            
+            if (client.config.MUSIC.ENGINE === 'lavalink') { //lavalink
+                const node = client.shoukaku.getNode();
+                if (!node) return message.reply('❌ Lavalink node is not ready yet!');
 
-            if (client.config.MUSIC.ENGINE === 'distube') {
+                const result = await node.rest.resolve(query.startsWith('http') ? query : `ytsearch:${query}`);
+                if (!result || result.loadType === 'NO_MATCHES') return message.reply('❌ No results found.');
+
+                const track = result.tracks.shift();
+                const player = await node.joinVoiceChannel({
+                    guildId: message.guild.id,
+                    channelId: channel.id,
+                    shardId: 0
+                });
+
+                player.playTrack({ track: track.track });
+                message.reply(`🎶 **Lavalink**: Playing **${track.info.title}**`);
+            } else if (client.config.MUSIC.ENGINE === 'distube') { //distube
                 await client.distube.play(channel, query, {
                     member: message.member,
                     textChannel: message.channel,
                     message
                 });
-            } 
-            else {
+            } else { //discord player
                 await client.player.play(channel, query, {
                     nodeOptions: {
                         metadata: { channel: message.channel }
