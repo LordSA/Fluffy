@@ -83,4 +83,30 @@ client.on('messageCreate', async message => {
     }
 });
 
+// --- MUSIC EVENT LISTENERS ---
+
+if (config.MUSIC.ENGINE === 'distube') {
+    client.distube
+        .on('playSong', (queue, song) => {
+            const msg = `🎶 Playing: **${song.name}** \`[${song.formattedDuration}]\``;
+            queue.textChannel.send(msg);
+            client.logger.info(`DisTube Play: ${song.name} in ${queue.voiceChannel.guild.name}`);
+        })
+        .on('error', (channel, e) => {
+            if (channel) channel.send(`❌ An error encountered: ${e.toString().slice(0, 1979)}`);
+            client.logger.error(`DisTube Error: ${e}`);
+        });
+} else {
+    // Discord Player Events
+    client.player.events.on('playerStart', (queue, track) => {
+        const msg = `🎶 Playing: **${track.title}** \`[${track.duration}]\``;
+        queue.metadata.channel.send(msg);
+        client.logger.info(`Player Play: ${track.title} in ${queue.guild.name}`);
+    });
+    
+    client.player.events.on('error', (queue, error) => {
+        client.logger.error(`Player Error: ${error.message}`);
+    });
+}
+
 client.login(config.TOKEN);

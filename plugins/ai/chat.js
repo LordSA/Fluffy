@@ -1,22 +1,32 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 module.exports = {
-    name: 'chat',
-    description: 'Talk to Fluffy AI',
-    async execute(client, message, args) {
-        if (!client.config.GEMINI_KEY) return message.reply("No AI Key configured.");
-        
-        const genAI = new GoogleGenerativeAI(client.config.GEMINI_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    name: 'ask',
+    description: 'Chat with Gemini AI',
+    async execute(message, args, client) {
+        if (!args.length) return message.reply('❌ Ask me something! Example: `.ask Write a poem`');
 
-        const prompt = args.join(" ");
+        const query = args.join(' ');
+        const genAI = new GoogleGenerativeAI(client.config.GEMINI_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
         try {
-            const result = await model.generateContent(prompt);
-            const response = result.response.text();
-            message.reply(response.substring(0, 2000));
-        } catch (e) {
-            console.error(e);
-            message.reply("My brain is having trouble connecting to Google right now.");
+            message.channel.sendTyping();
+            const result = await model.generateContent(query);
+            const response = await result.response;
+            const text = response.text();
+            if (text.length > 2000) {
+                message.reply(text.substring(0, 2000));
+                message.channel.send(text.substring(2000));
+            } else {
+                message.reply(text);
+            }
+            
+            client.logger.info(`AI Req: ${message.author.tag} asked "${query}"`);
+
+        } catch (error) {
+            client.logger.error(`AI Error: ${error.message}`);
+            message.reply('❌ AI is currently overloaded. Try again later.');
         }
     }
 };
