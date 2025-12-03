@@ -80,11 +80,21 @@ else { //discord player
 const loadPlugins = (dir) => {
     const files = fs.readdirSync(dir, { withFileTypes: true });
     for (const file of files) {
-        if (file.isDirectory()) loadPlugins(path.join(dir, file.name));
-        else if (file.name.endsWith('.js')) {
-            const cmd = require(path.join(dir, file.name));
-            client.commands.set(cmd.name, cmd);
-            logger.info(`Command Loaded: ${cmd.name}`);
+        if (file.isDirectory()) {
+            loadPlugins(path.join(dir, file.name));
+        } else if (file.name.endsWith('.js')) {
+            try {
+                const cmd = require(path.join(dir, file.name));
+                if (!cmd.name || !cmd.description) {
+                    logger.warn(`⚠️ Skipped invalid command file: ${file.name} (Missing name or description)`);
+                    continue; 
+                }
+
+                client.commands.set(cmd.name, cmd);
+                logger.info(`Command Loaded: ${cmd.name}`);
+            } catch (e) {
+                logger.error(`❌ Failed to load ${file.name}: ${e.message}`);
+            }
         }
     }
 };
