@@ -135,27 +135,24 @@ client.on('messageCreate', async message => {
     }
 });
 
-if (config.MUSIC.ENGINE === 'distube') {
-    client.distube
-        .on('playSong', (queue, song) => {
-            const msg = `🎶 Playing: **${song.name}** \`[${song.formattedDuration}]\``;
-            queue.textChannel.send(msg);
-            client.logger.info(`DisTube Play: ${song.name} in ${queue.voiceChannel.guild.name}`);
-        })
-        .on('error', (channel, e) => {
-            if (channel) channel.send(`❌ An error encountered: ${e.toString().slice(0, 1979)}`);
-            client.logger.error(`DisTube Error: ${e}`);
-        });
-} else {
-    client.player.events.on('playerStart', (queue, track) => {
-        const msg = `🎶 Playing: **${track.title}** \`[${track.duration}]\``;
-        queue.metadata.channel.send(msg);
-        client.logger.info(`Player Play: ${track.title} in ${queue.guild.name}`);
+if (config.MUSIC.ENGINE === 'distube' && client.distube) {
+    client.distube.on('playSong', (queue, song) => {
+        queue.textChannel.send(`🎶 Playing: **${song.name}** \`[${song.formattedDuration}]\``);
     });
-    
+    client.distube.on('error', (channel, e) => {
+        if (channel) channel.send(`❌ DisTube Error: ${e.toString().slice(0, 100)}`);
+    });
+} 
+else if (config.MUSIC.ENGINE === 'discord-player' && client.player) {
+    client.player.events.on('playerStart', (queue, track) => {
+        queue.metadata.channel.send(`🎶 Playing: **${track.title}** \`[${track.duration}]\``);
+    });
     client.player.events.on('error', (queue, error) => {
         client.logger.error(`Player Error: ${error.message}`);
     });
+}
+else if (config.MUSIC.ENGINE === 'lavalink' && client.shoukaku) {
+    client.shoukaku.on('error', (_, error) => client.logger.error(`Lavalink Error: ${error}`));
 }
 
 client.login(config.TOKEN);
