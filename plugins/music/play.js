@@ -95,7 +95,7 @@ module.exports = {
                     queue.current = queue.songs.shift(); 
                     
                     try {
-                        await player.playTrack({ track: { encoded: track.encoded } });
+                        await player.playTrack({ track: queue.current.encoded });
                         handleNowPlaying(client, player, queue.current, message.channel.id);
                     } catch (e) {
                         client.logger.error(`[Lavalink Play Error] ${e.message}`);
