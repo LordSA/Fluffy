@@ -6,8 +6,11 @@ const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const fs = require('fs');
+const ffmpegPath = require('ffmpeg-static');
+process.env.FFMPEG_PATH = ffmpegPath;
 const config = require('./config');
 const logger = require('./utils/logger');
+
 
 const client = new Client({
     intents: [
