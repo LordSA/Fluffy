@@ -8,8 +8,16 @@ module.exports = {
     MONGO_URL: process.env.MONGO_URL,
     LOG_CHANNEL: process.env.LOG_CHANNEL,
     MUSIC: {
-        ENGINE: process.env.MUSIC_ENGINE || 'distube',
+        ENGINE: process.env.MUSIC_ENGINE || 'lavalink', 
         SPOTIFY_ID: process.env.SPOTIFY_CLIENT_ID,
-        SPOTIFY_SECRET: process.env.SPOTIFY_CLIENT_SECRET
+        SPOTIFY_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
+        LAVALINK: [
+            {
+                name: "Public Node",
+                url: "lavalink.darrennathanael.com:8888", // Free node (use your own if possible)
+                auth: "password",
+                secure: false
+            }
+        ]
     }
 };
