@@ -58,7 +58,7 @@ module.exports = {
                     return message.channel.send(`✅ Added to queue: **${track.info.title}**`);
                 }
 
-                const player = await node.joinVoiceChannel({
+                const player = await client.shoukaku.joinVoiceChannel({
                     guildId: message.guild.id,
                     channelId: channel.id,
                     shardId: 0
@@ -67,7 +67,7 @@ module.exports = {
                 const playNext = async () => {
                     const queue = getQueue(message.guild.id);
                     if (queue.songs.length === 0) {
-                        player.destroy();
+                        client.shoukaku.leaveVoiceChannel(message.guild.id);
                         deleteQueue(message.guild.id);
                         handleQueueEnd(client, player, message.channel.id);
                         return;
