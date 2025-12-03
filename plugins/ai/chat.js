@@ -1,32 +1,17 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
 module.exports = {
-    name: 'ask',
-    description: 'Chat with Gemini AI',
+    name: 'chat',
+    description: 'Toggle continuous AI Chat Mode for this channel',
     async execute(message, args, client) {
-        if (!args.length) return message.reply('❌ Ask me something! Example: `.ask Write a poem`');
+        const channelId = message.channel.id;
 
-        const query = args.join(' ');
-        const genAI = new GoogleGenerativeAI(client.config.GEMINI_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-        try {
-            message.channel.sendTyping();
-            const result = await model.generateContent(query);
-            const response = await result.response;
-            const text = response.text();
-            if (text.length > 2000) {
-                message.reply(text.substring(0, 2000));
-                message.channel.send(text.substring(2000));
-            } else {
-                message.reply(text);
-            }
-            
-            client.logger.info(`AI Req: ${message.author.tag} asked "${query}"`);
-
-        } catch (error) {
-            client.logger.error(`AI Error: ${error.message}`);
-            message.reply('❌ AI is currently overloaded. Try again later.');
+        if (client.aiChannels.has(channelId)) {
+            client.aiChannels.delete(channelId);
+            message.reply('🛑 **AI Chat Mode Disabled.** I will stop reading messages here.');
+            client.logger.info(`AI Mode toggled OFF for ${message.channel.name}`);
+        } else {
+            client.aiChannels.add(channelId);
+            message.reply('🟢 **AI Chat Mode Enabled!** Talk to me normally.\n*(Use any other command like `.play` to stop)*');
+            client.logger.info(`AI Mode toggled ON for ${message.channel.name}`);
         }
     }
 };

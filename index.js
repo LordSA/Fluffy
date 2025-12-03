@@ -1,3 +1,4 @@
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
@@ -20,8 +21,8 @@ const client = new Client({
 client.config = config;
 client.logger = logger;
 client.commands = new Collection();
+client.aiChannels = new Set();
 
-// --- DUAL ENGINE INITIALIZATION ---
 if (config.MUSIC.ENGINE === 'distube') {
     client.distube = new DisTube(client, {
         leaveOnStop: false,
@@ -43,7 +44,6 @@ if (config.MUSIC.ENGINE === 'distube') {
     logger.info('System: Discord-Player Engine Initialized');
 }
 
-// --- COMMAND HANDLER ---
 const loadPlugins = (dir) => {
     const files = fs.readdirSync(dir, { withFileTypes: true });
     for (const file of files) {
@@ -59,31 +59,61 @@ const loadPlugins = (dir) => {
 
 loadPlugins('./plugins');
 
-// --- EVENTS ---
 client.on('ready', () => {
     logger.info(`Logged in as ${client.user.tag}`);
     logger.info(`Active Music Engine: ${config.MUSIC.ENGINE.toUpperCase()}`);
 });
 
 client.on('messageCreate', async message => {
-    if (message.author.bot || !message.content.startsWith(config.PREFIX)) return;
+    if (message.author.bot) return;
 
-    const args = message.content.slice(config.PREFIX.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
-    const command = client.commands.get(commandName);
+    if (message.content.startsWith(config.PREFIX)) {
+        const args = message.content.slice(config.PREFIX.length).trim().split(/ +/);
+        const commandName = args.shift().toLowerCase();
+        const command = client.commands.get(commandName);
 
-    if (command) {
+        if (command) {
+            if (commandName !== 'chat' && client.aiChannels.has(message.channel.id)) {
+                client.aiChannels.delete(message.channel.id);
+                message.reply('🤖 **AI Chat Mode Paused** because you used a command.');
+                logger.info(`AI Mode disabled in ${message.guild.name} (#${message.channel.name}) due to command: ${commandName}`);
+            }
+
+            try {
+                logger.info(`Cmd: ${commandName} | User: ${message.author.tag} | Guild: ${message.guild.name}`);
+                await command.execute(message, args, client);
+            } catch (error) {
+                logger.error(`Error in ${commandName}: ${error.message}`);
+                message.reply('❌ An error occurred executing that command.');
+            }
+        }
+        return;
+    }
+
+    if (client.aiChannels.has(message.channel.id)) {
         try {
-            logger.info(`Cmd: ${commandName} | User: ${message.author.tag} | Guild: ${message.guild.name}`);
-            await command.execute(message, args, client);
+            message.channel.sendTyping();
+
+            const genAI = new GoogleGenerativeAI(client.config.GEMINI_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+            const result = await model.generateContent(message.content);
+            const response = await result.response;
+            const text = response.text();
+
+            if (text.length > 2000) {
+                message.reply(text.substring(0, 2000));
+                message.channel.send(text.substring(2000, 4000));
+            } else {
+                message.reply(text);
+            }
+            
         } catch (error) {
-            logger.error(`Error in ${commandName}: ${error.message}`);
-            message.reply('❌ An error occurred executing that command.');
+            logger.error(`AI Auto-Chat Error: ${error.message}`);
+            message.channel.send('❌ AI had a hiccup. Try again.');
         }
     }
 });
-
-// --- MUSIC EVENT LISTENERS ---
 
 if (config.MUSIC.ENGINE === 'distube') {
     client.distube
@@ -97,7 +127,6 @@ if (config.MUSIC.ENGINE === 'distube') {
             client.logger.error(`DisTube Error: ${e}`);
         });
 } else {
-    // Discord Player Events
     client.player.events.on('playerStart', (queue, track) => {
         const msg = `🎶 Playing: **${track.title}** \`[${track.duration}]\``;
         queue.metadata.channel.send(msg);
