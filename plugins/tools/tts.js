@@ -1,4 +1,4 @@
-const discordTTS = require('discord-tts');
+/*const discordTTS = require('discord-tts');
 const { createAudioResource, createAudioPlayer, joinVoiceChannel } = require('@discordjs/voice');
 
 module.exports = {
@@ -22,4 +22,4 @@ module.exports = {
         connection.subscribe(player);
         message.react('🗣️');
     }
-};
+};*/
