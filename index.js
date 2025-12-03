@@ -97,7 +97,7 @@ client.on('messageCreate', async message => {
             message.channel.sendTyping();
 
             const genAI = new GoogleGenerativeAI(client.config.GEMINI_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
             const result = await model.generateContent(message.content);
             const response = await result.response;
