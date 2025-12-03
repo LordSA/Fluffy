@@ -4,11 +4,13 @@ const logger = require('./logger');
 
 module.exports = async (client, guildId) => {
     const rest = new REST({ version: '10' }).setToken(config.Token);
-    const commands = client.commands.map(cmd => ({
-        name: cmd.name,
-        description: cmd.description,
-        options: cmd.options || [] 
-    }));
+    const commands = client.commands
+        .filter(cmd => cmd.name && cmd.description) 
+        .map(cmd => ({
+            name: cmd.name,
+            description: cmd.description,
+            options: cmd.options || [] 
+        }))
 
     try {
         await rest.put(
@@ -17,5 +19,8 @@ module.exports = async (client, guildId) => {
         );
     } catch (error) {
         logger.error(`Failed to register slash commands for Guild ${guildId}: ${error.message}`);
+        if (error.rawError && error.rawError.errors) {
+            console.log(JSON.stringify(error.rawError.errors, null, 2));
+        }
     }
 };
