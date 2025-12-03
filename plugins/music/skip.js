@@ -1,24 +1,21 @@
-const { useQueue } = require("discord-player");
+const { getQueue } = require('../../utils/queue'); // Our custom queue
 
 module.exports = {
     name: 'skip',
     description: 'Skips the current song',
     async execute(message, args, client) {
-        const { channel } = message.member.voice;
-        if (!channel) return message.reply('❌ You must be in the voice channel.');
-
-        try {
-            if (client.config.MUSIC.ENGINE === 'distube') {
-                client.distube.skip(message);
-                message.reply('⏭️ **DisTube**: Skipped song.');
-            } else {
-                const queue = useQueue(message.guild.id);
-                if (queue) queue.node.skip();
-                message.reply('⏭️ **Discord-Player**: Skipped song.');
-            }
-            client.logger.info(`Music Skipped by ${message.author.tag}`);
-        } catch (e) {
-            message.reply('❌ No more songs in queue.');
+        // Lavalink
+        if (client.config.Music.Engine === 'lavalink') {
+            const player = client.shoukaku.players.get(message.guild.id);
+            if (!player) return message.reply("❌ Nothing is playing.");
+            
+            player.stopTrack(); // This triggers 'end' event, which calls playNext()
+            message.reply("⏭️ **Skipped!**");
+        }
+        // DisTube
+        else if (client.config.Music.Engine === 'distube') {
+            client.distube.skip(message);
+            message.reply("⏭️ **Skipped!**");
         }
     }
 };

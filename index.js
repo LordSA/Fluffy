@@ -33,10 +33,30 @@ client.commands = new Collection();
 client.aiChannels = new Set();
 client.database = {guild: new Jsoning("guild.json")};
 
+// --- WEB SERVER (EXPRESS) ---
 if (config.Dashboard && config.Dashboard.Enabled) {
     client.server = Express();
     client.http = http.createServer(client.server);
-    client.server.get('/', (req, res) => res.send('Fluffy Bot is Online!'));
+
+    client.server.set('view engine', 'ejs');
+    client.server.set('views', path.join(__dirname, 'views'));
+    
+    client.server.use(Express.static(path.join(__dirname, 'public')));
+    client.server.get('/', (req, res) => {
+        res.render('index', { 
+            bot: client, 
+            user: client.user 
+        });
+    });
+
+    client.server.get('/dashboard', (req, res) => {
+        res.render('dashboard', { 
+            bot: client, 
+            guilds: client.guilds.cache.size,
+            users: client.users.cache.size
+        });
+    });
+
     client.http.listen(config.Dashboard.Port || 3000, () => {
         logger.log(`Web Server started on port ${config.Dashboard.Port || 3000}`);
     });

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= user.username %> - Home</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #2c2f33; color: white; text-align: center; padding: 50px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        img { border-radius: 50%; width: 150px; height: 150px; border: 5px solid #7289da; }
+        h1 { margin-top: 20px; }
+        .status { color: #43b581; font-weight: bold; }
+        .btn { display: inline-block; padding: 10px 20px; margin: 10px; background: #7289da; color: white; text-decoration: none; border-radius: 5px; }
+        .btn:hover { background: #5b6eae; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="<%= user.displayAvatarURL() %>" alt="Bot Avatar">
+        
+        <h1><%= user.username %></h1>
+        
+        <p>Status: <span class="status">● Online</span></p>
+        
+        <a href="/dashboard" class="btn">Go to Dashboard</a>
+        <a href="https://discord.com/oauth2/authorize?client_id=<%= user.id %>&permissions=8&scope=bot" class="btn">Invite Bot</a>
+    </div>
+</body>
+</html>

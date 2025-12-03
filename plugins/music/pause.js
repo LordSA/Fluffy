@@ -1,19 +1,28 @@
-const { useMainPlayer } = require('discord-player');
-
 module.exports = {
     name: 'pause',
-    description: 'Pause or Resume music',
-    async execute(client, message, args) {
-        const player = useMainPlayer();
-        const queue = player.nodes.get(message.guild.id);
-
-        if (!queue || !queue.isPlaying()) {
-            return message.reply("No music is playing!");
+    description: 'Pauses or Resumes the music',
+    async execute(message, args, client) {
+        // Lavalink
+        if (client.config.Music.Engine === 'lavalink') {
+            const player = client.shoukaku.players.get(message.guild.id);
+            if (!player) return message.reply("❌ Nothing is playing.");
+            
+            const isPaused = !player.paused;
+            player.setPaused(isPaused);
+            message.reply(isPaused ? "⏸️ **Paused**" : "▶️ **Resumed**");
         }
-
-        const isPaused = queue.node.isPaused();
-        queue.node.setPaused(!isPaused);
-
-        return message.reply(isPaused ? "▶️ Resumed!" : "f⏸️ Paused!");
+        // DisTube
+        else if (client.config.Music.Engine === 'distube') {
+            const queue = client.distube.getQueue(message);
+            if (!queue) return message.reply("❌ Nothing is playing.");
+            
+            if (queue.paused) {
+                queue.resume();
+                message.reply("▶️ **Resumed**");
+            } else {
+                queue.pause();
+                message.reply("⏸️ **Paused**");
+            }
+        }
     }
 };
