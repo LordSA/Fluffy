@@ -1,35 +1,38 @@
-const winston = require('winston');
-const DailyRotateFile = require('winston-daily-rotate-file');
+const winston = require("winston");
+const colors = require("colors");
+const fs = require("fs");
+const path = require("path");
 
-const logFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(info => `[${info.timestamp}] [${info.level.toUpperCase()}]: ${info.message}`)
-);
+class Logger {
+  constructor(filePath) {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-const logger = winston.createLogger({
-    level: 'info',
-    format: logFormat,
-    transports: [
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                logFormat
-            )
-        }),
-        new DailyRotateFile({
-            filename: 'logs/application-%DATE%.log',
-            datePattern: 'YYYY-MM-DD',
-            maxSize: '20m',
-            maxFiles: '14d'
-        }),
-        new DailyRotateFile({
-            filename: 'logs/error-%DATE%.log',
-            level: 'error',
-            datePattern: 'YYYY-MM-DD',
-            maxSize: '20m',
-            maxFiles: '30d'
-        })
-    ]
-});
+    this.logger = winston.createLogger({
+      transports: [new winston.transports.File({ filename: filePath })],
+    });
+  }
 
-module.exports = logger;
+  log(Text) {
+    let d = new Date();
+    this.logger.log({
+      level: "info",
+      message: `${d.getHours()}:${d.getMinutes()} - ${d.getDate()}:${d.getMonth() + 1}:${d.getFullYear()} | Info: ` + Text,
+    });
+    console.log(
+      colors.green(`${d.getDate()}:${d.getMonth() + 1}:${d.getFullYear()} - ${d.getHours()}:${d.getMinutes()}`) +
+      colors.yellow(" | Info: " + Text)
+    );
+  }
+
+  error(Text) {
+    let d = new Date();
+    this.logger.log({ level: "error", message: Text });
+    console.log(colors.red(`[ERROR] ${Text}`));
+  }
+  
+  info(Text) { this.log(Text); }
+  warn(Text) { console.log(colors.magenta(`[WARN] ${Text}`)); }
+}
+
+module.exports = new Logger(path.join(__dirname, "..", "logs", "Bot.log"));
