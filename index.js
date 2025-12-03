@@ -25,7 +25,6 @@ client.aiChannels = new Set();
 
 if (config.MUSIC.ENGINE === 'distube') {
     client.distube = new DisTube(client, {
-        leaveOnStop: false,
         emitNewSongOnly: true,
         plugins: [
             new SpotifyPlugin({
