@@ -34,16 +34,20 @@ module.exports = {
                 
                 switch (result.loadType) {
                     case 'track':
-                        track = result.data;
+                    case 'TRACK_LOADED':
+                        track = result.data || result.tracks[0];
                         break;
                     case 'search':
-                        track = result.data[0];
+                    case 'SEARCH_RESULT':
+                        track = Array.isArray(result.data) ? result.data[0] : result.tracks[0];
                         break;
                     case 'playlist':
-                        track = result.data.tracks[0];
-                        message.channel.send(`⚠️ Playlists are not fully supported yet. Playing: **${result.data.info.name}**`);
+                    case 'PLAYLIST_LOADED':
+                        track = Array.isArray(result.data.tracks) ? result.data.tracks[0] : result.tracks[0];
+                        message.channel.send(`⚠️ Playlists are not fully supported yet. Playing first song.`);
                         break;
                     default:
+                        client.logger.error(`Unknown Load Type: ${result.loadType}`);
                         return message.channel.send('❌ Unknown load type.');
                 }
 
@@ -74,21 +78,29 @@ module.exports = {
                     }
                     
                     queue.current = queue.songs.shift(); 
+                    
                     const trackString = queue.current.encoded || queue.current.track;
                     
                     if (!trackString) {
-                        client.logger.error(`[Play Error] Track string is missing! Data: ${JSON.stringify(queue.current)}`);
-                        message.channel.send("❌ Error: Could not play track (Invalid Data). Skipping...");
+                        client.logger.error(`[Play Error] Invalid Track Data: ${JSON.stringify(queue.current)}`);
+                        message.channel.send("❌ Error: Track data is corrupted. Skipping...");
                         playNext(); 
                         return;
                     }
 
-                    await player.playTrack({ track: trackString });
-                    handleNowPlaying(client, player, queue.current, message.channel.id);
+                    client.logger.info(`[Player] Playing Track: ${trackString.substring(0, 20)}...`);
+
+                    try {
+                        await player.playTrack({ track: trackString });
+                        handleNowPlaying(client, player, queue.current, message.channel.id);
+                    } catch (e) {
+                        client.logger.error(`[Lavalink Play Error] ${e.message}`);
+                        message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
+                        playNext();
+                    }
                 };
 
                 player.removeAllListeners();
-                
                 player.on('start', () => {}); 
                 player.on('end', (data) => {
                     if (data.reason === 'FINISHED' || data.reason === 'STOPPED') playNext();
@@ -101,16 +113,10 @@ module.exports = {
                 playNext();
             } 
             else if (client.config.Music.Engine === 'distube') {
-                client.distube.play(channel, query, {
-                    member: message.member,
-                    textChannel: message.channel,
-                    message
-                });
+                client.distube.play(channel, query, { member: message.member, textChannel: message.channel, message });
             }
             else {
-                await client.player.play(channel, query, {
-                    nodeOptions: { metadata: { channel: message.channel } }
-                });
+                await client.player.play(channel, query, { nodeOptions: { metadata: { channel: message.channel } } });
             }
         } catch (error) {
             client.logger.error(`Play Error: ${error.message}`);
