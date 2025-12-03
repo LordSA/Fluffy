@@ -61,6 +61,12 @@ if (config.Music.Engine === 'distube') { //distube
     logger.info('System: DisTube Initialized');
 } 
 else if (config.Music.Engine === 'lavalink') { //lavalink
+    const nodes = config.Music.Lavalink.map(node => ({
+        name: node.id,
+        url: `${node.host}:${node.port}`,
+        auth: node.pass,
+        secure: node.secure
+    }));
     client.shoukaku = new Shoukaku(new Connectors.DiscordJS(client), config.Music.Lavalink, { 
         moveOnDisconnect: false, 
         resume: false, 
