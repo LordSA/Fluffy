@@ -1,7 +1,12 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
-require('dotenv').config();
+const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { Player } = require('discord-player');
+const { DefaultExtractors } = require('@discord-player/extractor');
+const fs = require('fs');
+const config = require('./config');
+const logger = require('./utils/logger');
 
 const client = new Client({
     intents: [
@@ -12,10 +17,70 @@ const client = new Client({
     ]
 });
 
-client.distube = new DisTube(client, {
-    plugins: [new SpotifyPlugin()],
-    emitNewSongOnly: true
+client.config = config;
+client.logger = logger;
+client.commands = new Collection();
+
+// --- DUAL ENGINE INITIALIZATION ---
+if (config.MUSIC.ENGINE === 'distube') {
+    client.distube = new DisTube(client, {
+        leaveOnStop: false,
+        emitNewSongOnly: true,
+        plugins: [
+            new SpotifyPlugin({
+                api: {
+                    clientId: config.MUSIC.SPOTIFY_ID,
+                    clientSecret: config.MUSIC.SPOTIFY_SECRET
+                }
+            }),
+            new YtDlpPlugin()
+        ]
+    });
+    logger.info('System: DisTube Engine Initialized');
+} else {
+    client.player = new Player(client);
+    client.player.extractors.loadMulti(DefaultExtractors);
+    logger.info('System: Discord-Player Engine Initialized');
+}
+
+// --- COMMAND HANDLER ---
+const loadPlugins = (dir) => {
+    const files = fs.readdirSync(dir, { withFileTypes: true });
+    for (const file of files) {
+        if (file.isDirectory()) {
+            loadPlugins(`${dir}/${file.name}`);
+        } else if (file.name.endsWith('.js')) {
+            const command = require(`${dir}/${file.name}`);
+            client.commands.set(command.name, command);
+            logger.info(`Plugin Loaded: ${command.name}`);
+        }
+    }
+};
+
+loadPlugins('./plugins');
+
+// --- EVENTS ---
+client.on('ready', () => {
+    logger.info(`Logged in as ${client.user.tag}`);
+    logger.info(`Active Music Engine: ${config.MUSIC.ENGINE.toUpperCase()}`);
 });
 
-client.commands = new Collection();
-client.login(process.env.TOKEN);
+client.on('messageCreate', async message => {
+    if (message.author.bot || !message.content.startsWith(config.PREFIX)) return;
+
+    const args = message.content.slice(config.PREFIX.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
+    const command = client.commands.get(commandName);
+
+    if (command) {
+        try {
+            logger.info(`Cmd: ${commandName} | User: ${message.author.tag} | Guild: ${message.guild.name}`);
+            await command.execute(message, args, client);
+        } catch (error) {
+            logger.error(`Error in ${commandName}: ${error.message}`);
+            message.reply('❌ An error occurred executing that command.');
+        }
+    }
+});
+
+client.login(config.TOKEN);

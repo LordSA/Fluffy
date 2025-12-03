@@ -6,5 +6,10 @@ module.exports = {
     OWNER_ID: process.env.OWNER_ID,
     GEMINI_KEY: process.env.GEMINI_KEY,
     MONGO_URL: process.env.MONGO_URL,
-    LOG_CHANNEL: process.env.LOG_CHANNEL
+    LOG_CHANNEL: process.env.LOG_CHANNEL,
+    MUSIC: {
+        ENGINE: process.env.MUSIC_ENGINE || 'distube',
+        SPOTIFY_ID: process.env.SPOTIFY_CLIENT_ID,
+        SPOTIFY_SECRET: process.env.SPOTIFY_CLIENT_SECRET
+    }
 };
