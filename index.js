@@ -58,7 +58,7 @@ const loadPlugins = (dir) => {
 
 loadPlugins('./plugins');
 
-client.on('ready', () => {
+client.once('clientReady', (c) => {
     logger.info(`Logged in as ${client.user.tag}`);
     logger.info(`Active Music Engine: ${config.MUSIC.ENGINE.toUpperCase()}`);
 });
