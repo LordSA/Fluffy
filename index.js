@@ -54,8 +54,10 @@ if (config.MUSIC.ENGINE === 'distube') {
         restTimeout: 10000
     });
     
-    client.shoukaku.on('error', (_, error) => logger.error(`Lavalink Error: ${error}`));
-    client.shoukaku.on('ready', (name) => logger.info(`Lavalink Node ${name} is ready`));
+    client.shoukaku.on('error', (name, error) => logger.error(`Lavalink [${name}] Error: ${error}`));
+    client.shoukaku.on('ready', (name) => logger.info(`✅ Lavalink Node [${name}] is connected and ready!`));
+    client.shoukaku.on('close', (name, code, reason) => logger.warn(`Lavalink [${name}] Closed: ${code} - ${reason}`));
+    client.shoukaku.on('disconnect', (name) => logger.warn(`Lavalink [${name}] Disconnected`));
     
     logger.info('System: Lavalink Engine Initialized');
 } else {

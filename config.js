@@ -13,10 +13,16 @@ module.exports = {
         SPOTIFY_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
         LAVALINK: [
             {
-                name: "Public Node",
-                url: "lavalink.darrennathanael.com:8888", // Free node (use your own if possible)
-                auth: "password",
-                secure: false
+                name: "Lavalink-1",
+                url: "lava-v4.ajieblogs.eu.org:443", // Free node (use your own if possible)
+                auth: "https://ajieblogs.eu.org",
+                secure: true
+            },
+            {
+                name: "Lavalink-2",
+                url: "lavalink.komet.space:443",
+                auth: "komet",
+                secure: true
             }
         ]
     }
