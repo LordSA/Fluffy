@@ -16,15 +16,15 @@ module.exports = {
         Engine: process.env.MUSIC_ENGINE || 'lavalink', 
         Lavalink: [
             {
-                name: "AjieBlogs-v4",
-                url: "lava-v4.ajieblogs.eu.org:443",
-                auth: "https://dsc.gg/ajidevserver",
-                secure: true
+                name: "Lavalink-NonSSL",
+                url: "lavalink.komet.space:80",
+                auth: "komet",
+                secure: false
             },
             {
-                name: "Trinium-v4",
-                url: "lavalink-v4.triniumhost.com:443",
-                auth: "free",
+                name: "AjieBlogs-v4", 
+                url: "lava-v4.ajieblogs.eu.org:443",
+                auth: "https://dsc.gg/ajidevserver",
                 secure: true
             }
         ]
