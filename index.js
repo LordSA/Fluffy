@@ -1,7 +1,9 @@
+const ffmpegPath = require('ffmpeg-static');
+process.env.FFMPEG_PATH = ffmpegPath;
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActivityType, EmbedBuilder } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
@@ -9,11 +11,12 @@ const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const { Shoukaku, Connectors } = require('shoukaku');
 const fs = require('fs');
-const ffmpegPath = require('ffmpeg-static');
-process.env.FFMPEG_PATH = ffmpegPath;
+const http = require("http");
+const Express = require("express");
+const Jsoning = require("jsoning");
 const config = require('./config');
 const logger = require('./utils/logger');
-
+const { handleNowPlaying, handleQueueEnd } = require('./utils/playerUtils');
 
 const client = new Client({
     intents: [
@@ -28,36 +31,37 @@ client.config = config;
 client.logger = logger;
 client.commands = new Collection();
 client.aiChannels = new Set();
+client.database = {guild: new Jsoning("guild.json")};
 
-if (config.MUSIC.ENGINE === 'distube') {
+if (config.Dashboard && config.Dashboard.Enabled) {
+    client.server = Express();
+    client.http = http.createServer(client.server);
+    client.server.get('/', (req, res) => res.send('Fluffy Bot is Online!'));
+    client.http.listen(config.Dashboard.Port || 3000, () => {
+        logger.log(`Web Server started on port ${config.Dashboard.Port || 3000}`);
+    });
+}
+
+if (config.Music.Engine === 'distube') {
     client.distube = new DisTube(client, {
         emitNewSongOnly: true,
-        ffmpeg: {
-            path: ffmpegPath
-        },
+        ffmpeg: { path: ffmpegPath },
         plugins: [
-            new SpotifyPlugin({
-                api: {
-                    clientId: config.MUSIC.SPOTIFY_ID,
-                    clientSecret: config.MUSIC.SPOTIFY_SECRET
-                }
-            }),
+            new SpotifyPlugin({ api: { clientId: config.Spotify.ClientID, clientSecret: config.Spotify.ClientSecret } }),
             new YtDlpPlugin()
         ]
     });
     logger.info('System: DisTube Engine Initialized');
-} else if (config.MUSIC.ENGINE === 'lavalink') {
-    client.shoukaku = new Shoukaku(new Connectors.DiscordJS(client), config.MUSIC.LAVALINK, {
+} else if (config.Music.Engine === 'lavalink') {
+    client.shoukaku = new Shoukaku(new Connectors.DiscordJS(client), config.Music.Lavalink, {
         moveOnDisconnect: false,
         resume: false,
         reconnectTries: 5,
         restTimeout: 10000
     });
     
-    client.shoukaku.on('error', (name, error) => logger.error(`Lavalink [${name}] Error: ${error}`));
-    client.shoukaku.on('ready', (name) => logger.info(`✅ Lavalink Node [${name}] is connected and ready!`));
-    client.shoukaku.on('close', (name, code, reason) => logger.warn(`Lavalink [${name}] Closed: ${code} - ${reason}`));
-    client.shoukaku.on('disconnect', (name) => logger.warn(`Lavalink [${name}] Disconnected`));
+    client.shoukaku.on('error', (_, error) => logger.error(`Lavalink Error: ${error}`));
+    client.shoukaku.on('ready', (name) => logger.info(`✅ Lavalink Node [${name}] connected`));
     
     logger.info('System: Lavalink Engine Initialized');
 } else {
@@ -82,15 +86,32 @@ const loadPlugins = (dir) => {
 loadPlugins('./plugins');
 
 client.once('clientReady', (c) => {
-    logger.info(`Logged in as ${client.user.tag}`);
-    logger.info(`Active Music Engine: ${config.MUSIC.ENGINE.toUpperCase()}`);
+    logger.info(`Logged in as ${c.user.tag}`);
+    logger.info(`Active Music Engine: ${config.Music.Engine.toUpperCase()}`);
+
+    if (config.Presence) {
+        client.user.setPresence({
+            activities: [{ name: config.Presence.name, type: ActivityType[config.Presence.type] }],
+            status: config.Presence.status
+        });
+    }
 });
 
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
-    if (message.content.startsWith(config.PREFIX)) {
-        const args = message.content.slice(config.PREFIX.length).trim().split(/ +/);
+    if (message.guild) {
+        let guildDB = await client.database.guild.get(message.guild.id);
+        if (!guildDB) {
+            await client.database.guild.set(message.guild.id, {
+                prefix: config.Prefix,
+                DJ: null
+            });
+        }
+    }
+
+    if (message.content.startsWith(config.Prefix)) {
+        const args = message.content.slice(config.Prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
         const command = client.commands.get(commandName);
 
@@ -98,11 +119,8 @@ client.on('messageCreate', async message => {
             if (commandName !== 'chat' && client.aiChannels.has(message.channel.id)) {
                 client.aiChannels.delete(message.channel.id);
                 message.reply('🤖 **AI Chat Mode Paused** because you used a command.');
-                logger.info(`AI Mode disabled in ${message.guild.name} (#${message.channel.name}) due to command: ${commandName}`);
             }
-
             try {
-                logger.info(`Cmd: ${commandName} | User: ${message.author.tag} | Guild: ${message.guild.name}`);
                 await command.execute(message, args, client);
             } catch (error) {
                 logger.error(`Error in ${commandName}: ${error.message}`);
@@ -115,10 +133,8 @@ client.on('messageCreate', async message => {
     if (client.aiChannels.has(message.channel.id)) {
         try {
             message.channel.sendTyping();
-
-            const genAI = new GoogleGenerativeAI(client.config.GEMINI_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
+            const genAI = new GoogleGenerativeAI(config.AI.GeminiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
             const result = await model.generateContent(message.content);
             const response = await result.response;
             const text = response.text();
@@ -129,7 +145,6 @@ client.on('messageCreate', async message => {
             } else {
                 message.reply(text);
             }
-            
         } catch (error) {
             logger.error(`AI Auto-Chat Error: ${error.message}`);
             message.channel.send('❌ AI had a hiccup. Try again.');
@@ -137,24 +152,4 @@ client.on('messageCreate', async message => {
     }
 });
 
-if (config.MUSIC.ENGINE === 'distube' && client.distube) {
-    client.distube.on('playSong', (queue, song) => {
-        queue.textChannel.send(`🎶 Playing: **${song.name}** \`[${song.formattedDuration}]\``);
-    });
-    client.distube.on('error', (channel, e) => {
-        if (channel) channel.send(`❌ DisTube Error: ${e.toString().slice(0, 100)}`);
-    });
-} 
-else if (config.MUSIC.ENGINE === 'discord-player' && client.player) {
-    client.player.events.on('playerStart', (queue, track) => {
-        queue.metadata.channel.send(`🎶 Playing: **${track.title}** \`[${track.duration}]\``);
-    });
-    client.player.events.on('error', (queue, error) => {
-        client.logger.error(`Player Error: ${error.message}`);
-    });
-}
-else if (config.MUSIC.ENGINE === 'lavalink' && client.shoukaku) {
-    client.shoukaku.on('error', (_, error) => client.logger.error(`Lavalink Error: ${error}`));
-}
-
-client.login(config.TOKEN);
+client.login(config.Token);
