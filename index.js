@@ -1,3 +1,5 @@
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { DisTube } = require('distube');
