@@ -1,29 +1,45 @@
 require('dotenv').config();
 
 module.exports = {
-    TOKEN: process.env.TOKEN,
-    PREFIX: process.env.PREFIX || ".",
-    OWNER_ID: process.env.OWNER_ID,
-    GEMINI_KEY: process.env.GEMINI_KEY,
-    MONGO_URL: process.env.MONGO_URL,
-    LOG_CHANNEL: process.env.LOG_CHANNEL,
-    MUSIC: {
-        ENGINE: process.env.MUSIC_ENGINE || 'lavalink', 
-        SPOTIFY_ID: process.env.SPOTIFY_CLIENT_ID,
-        SPOTIFY_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
-        LAVALINK: [
+    Token: process.env.TOKEN || "",
+    Prefix: process.env.PREFIX || ".",
+    OwnerID: process.env.OWNER_ID || "",
+    EmbedColor: "Random",
+    
+    Presence: {
+        status: "online", 
+        name: "Music & AI", 
+        type: "LISTENING"
+    },
+
+    Music: {
+        Engine: process.env.MUSIC_ENGINE || 'lavalink', 
+        Lavalink: [
             {
-                name: "Lavalink-1",
-                url: "lava-v4.ajieblogs.eu.org:443", // Free node (use your own if possible)
-                auth: "https://ajieblogs.eu.org",
+                name: "AjieBlogs-v4",
+                url: "lava-v4.ajieblogs.eu.org:443",
+                auth: "https://dsc.gg/ajidevserver",
                 secure: true
             },
             {
-                name: "Lavalink-2",
-                url: "lavalink.komet.space:443",
-                auth: "komet",
+                name: "Trinium-v4",
+                url: "lavalink-v4.triniumhost.com:443",
+                auth: "free",
                 secure: true
             }
         ]
+    },
+
+    Spotify: {
+        ClientID: process.env.SPOTIFY_CLIENT_ID || "",
+        ClientSecret: process.env.SPOTIFY_CLIENT_SECRET || "",
+    },
+    AI: {
+        GeminiKey: process.env.GEMINI_KEY || ""
+    },
+
+    Dashboard: {
+        Enabled: true,
+        Port: 3000
     }
 };
