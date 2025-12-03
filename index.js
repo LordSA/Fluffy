@@ -29,6 +29,9 @@ client.aiChannels = new Set();
 if (config.MUSIC.ENGINE === 'distube') {
     client.distube = new DisTube(client, {
         emitNewSongOnly: true,
+        ffmpeg: {
+            path: ffmpegPath
+        },
         plugins: [
             new SpotifyPlugin({
                 api: {
