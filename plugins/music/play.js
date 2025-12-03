@@ -1,23 +1,22 @@
-const { useMainPlayer, QueryType } = require('discord-player');
-
 module.exports = {
     name: 'play',
-    description: 'Play music in VC',
-    async execute(client, message, args) {
-        const player = useMainPlayer();
-        const channel = message.member.voice.channel;
+    description: 'Play a song or playlist',
+    async execute(message, args, client) {
+        const voiceChannel = message.member.voice.channel;
+        if (!voiceChannel) return message.reply('❌ You need to be in a Voice Channel!');
 
-        if (!channel) return message.reply("Join a Voice Channel first!");
-        if (!args.length) return message.reply("Please provide a song name!");
+        const query = args.join(' ');
+        if (!query) return message.reply('❌ Please enter a song name or link!');
 
         try {
-            const { track } = await player.play(channel, args.join(" "), {
-                nodeOptions: { metadata: message },
-                searchEngine: QueryType.YOUTUBE_SEARCH
+            await client.distube.play(voiceChannel, query, {
+                member: message.member,
+                textChannel: message.channel,
+                message
             });
-            return message.reply(`Now Playing: ${track.title}`);
+            message.reply(`🔍 Searching for \`${query}\`...`);
         } catch (e) {
-            return message.reply(`Error: ${e.message}`);
+            message.reply(`❌ Error: ${e.message}`);
         }
     }
 };
