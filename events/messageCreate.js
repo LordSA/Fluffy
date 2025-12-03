@@ -3,7 +3,6 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 module.exports = async (client, message) => {
     if (message.author.bot) return;
 
-    // 1. Database Logic (Ensure Guild Config)
     if (message.guild) {
         let guildDB = await client.database.guild.get(message.guild.id);
         if (!guildDB) {
@@ -14,7 +13,6 @@ module.exports = async (client, message) => {
         }
     }
 
-    // 2. Command Handling
     if (message.content.startsWith(client.config.Prefix)) {
         const args = message.content.slice(client.config.Prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
@@ -25,7 +23,6 @@ module.exports = async (client, message) => {
                 client.aiChannels.delete(message.channel.id);
                 message.reply('🤖 **AI Chat Mode Paused** because you used a command.');
             }
-
             try {
                 await command.execute(message, args, client);
             } catch (error) {
@@ -33,16 +30,14 @@ module.exports = async (client, message) => {
                 message.reply('❌ An error occurred executing that command.');
             }
         }
-        return; 
+        return;
     }
 
-    // 3. AI Chat Logic
     if (client.aiChannels.has(message.channel.id)) {
         try {
             message.channel.sendTyping();
             const genAI = new GoogleGenerativeAI(client.config.AI.GeminiKey);
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            
             const result = await model.generateContent(message.content);
             const response = await result.response;
             const text = response.text();
