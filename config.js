@@ -16,22 +16,10 @@ module.exports = {
         Engine: process.env.MUSIC_ENGINE || 'lavalink', 
         Lavalink: [
             {
-                name: "Lavalink-Host",
-                url: "v4.lavalink.host:443",
-                auth: "youshallnotpass",
-                secure: true
-            },
-            {
-                name: "Helia-Host",
-                url: "lava.heliahost.com:443",
-                auth: "free",
-                secure: true
-            },
-            {
-                name: "Komet-SSL",
-                url: "lavalink.komet.space:443",
-                auth: "komet",
-                secure: true
+                name: "Main",
+                url: "lava.com:80",
+                auth: "",
+                secure: false
             },
             {
                 name: "Trinium-v4",
