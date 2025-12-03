@@ -30,6 +30,12 @@ module.exports = {
             .setColor(client.config.EmbedColor === "RANDOM" ? "Random" : client.config.EmbedColor);
         const newMsg = await channel.send({ embeds: [embed] });
         nowPlayingMap.set(player.guildId, newMsg.id);
+        if (client.io) {
+            client.io.emit("trackStart", { 
+                guildId: player.guildId, 
+                track: track.info 
+            });
+        }
     },
     handleQueueEnd: (client, player, channelId) => {
         const channel = client.channels.cache.get(channelId);

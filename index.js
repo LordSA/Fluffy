@@ -40,11 +40,13 @@ if (config.Dashboard && config.Dashboard.Enabled) {
     client.server.set('view engine', 'ejs');
     client.server.set('views', path.join(__dirname, 'views'));
     client.server.use(Express.static(path.join(__dirname, 'public')));
-
-    client.server.get('/', (req, res) => res.render('index', { bot: client, user: client.user }));
-    client.server.get('/dashboard', (req, res) => res.render('dashboard', { bot: client, guilds: client.guilds.cache.size, users: client.users.cache.size }));
-
-    client.http.listen(config.Dashboard.Port || 3000, () => logger.log(`Web Server running on port ${config.Dashboard.Port || 3000}`));
+    client.server.use("/", require("./api")(client));
+    const io = require("socket.io")(client.http);
+    client.io = io; 
+    require("./api/socket")(io, client);
+    client.http.listen(config.Dashboard.Port || 3000, () => 
+        logger.log(`Web Server running on port ${config.Dashboard.Port || 3000}`)
+    );
 }
 
 // --- MUSIC ENGINES ---
