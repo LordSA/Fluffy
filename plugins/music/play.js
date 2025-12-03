@@ -17,15 +17,16 @@ module.exports = {
         if (!query) return message.reply('❌ Please provide a song name or link.');
 
         try {
-            const searchMsg = await message.reply(`🔍 **${client.config.MUSIC.ENGINE === 'distube' ? 'DisTube' : 'Discord-Player'}**: Searching for \`${query}\`...`);
+            const searchMsg = await message.reply(`🔍 **${client.config.MUSIC.ENGINE.toUpperCase()}**: Searching for \`${query}\`...`);
             
             if (client.config.MUSIC.ENGINE === 'lavalink') { //lavalink
-                const node = client.shoukaku.getNode();
+                const node = client.shoukaku.getIdealNode();
                 if (!node) return message.reply('❌ Lavalink node is not ready yet!');
 
                 const result = await node.rest.resolve(query.startsWith('http') ? query : `ytsearch:${query}`);
-                if (!result || result.loadType === 'NO_MATCHES') return message.reply('❌ No results found.');
-
+                if (!result || result.loadType === 'NO_MATCHES' || result.loadType === 'empty') {
+                     return message.reply('❌ No results found.');
+                }
                 const track = result.tracks.shift();
                 const player = await node.joinVoiceChannel({
                     guildId: message.guild.id,
@@ -33,8 +34,14 @@ module.exports = {
                     shardId: 0
                 });
 
+                player.on('start', () => {
+                    message.channel.send(`🎶 **Lavalink**: Playing **${track.info.title}**`);
+                });
+                player.on('end', () => {
+                    player.destroy();
+                });
+
                 player.playTrack({ track: track.track });
-                message.reply(`🎶 **Lavalink**: Playing **${track.info.title}**`);
             } else if (client.config.MUSIC.ENGINE === 'distube') { //distube
                 await client.distube.play(channel, query, {
                     member: message.member,
