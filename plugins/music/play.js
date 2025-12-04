@@ -25,14 +25,24 @@ module.exports = {
                 if (!node) return message.channel.send('❌ Lavalink not ready.');
 
                 const isUrl = query.startsWith('http');
-                let result = await node.rest.resolve(isUrl ? query : `ytsearch:${query}`);
+                let result;
 
-                if (!isUrl && (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES')) {
-                    result = await node.rest.resolve(`scsearch:${query}`);
+                if (isUrl) {
+                    result = await node.rest.resolve(query);
+                } else {
+                    result = await node.rest.resolve(`ytsearch:${query}`);
+
+                    if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
+                        result = await node.rest.resolve(`ytmsearch:${query}`);
+                    }
+
+                    if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
+                        result = await node.rest.resolve(`scsearch:${query}`);
+                    }
                 }
 
                 if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
-                    return message.channel.send('❌ No results found.');
+                    return message.channel.send('❌ No results found on YouTube, YT Music, or SoundCloud.');
                 }
 
                 let rawTrack;
@@ -111,24 +121,14 @@ module.exports = {
                     try {
                         client.logger.info(`[Lavalink] Playing Track: ${queue.current.info.title}`);
                         
-                        await player.playTrack({ track: trackString });
+                        await player.playTrack(trackString);
                         
                         handleNowPlaying(client, player, queue.current, message.channel.id);
                     } catch (e) {
                         client.logger.error(`[Lavalink Play Error] ${e.message}`);
+                        message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
                         
-                        if (e.message.includes('Bad Request')) {
-                            try {
-                                client.logger.info('[Lavalink] Retrying with alternative format...');
-                                await player.playTrack(trackString);
-                            } catch (retryError) {
-                                message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
-                                playNext();
-                            }
-                        } else {
-                             message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
-                             playNext();
-                        }
+                        playNext();
                     }
                 };
 
