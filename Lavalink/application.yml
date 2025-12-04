@@ -12,11 +12,11 @@ lavalink:
       vimeo: true
       http: true
       local: false
-    bufferDurationMs: 400
+    bufferDurationMs: 4000
     frameBufferDurationMs: 5000
-    youtubePlaylistLoadLimit: 6 
+    youtubePlaylistLoadLimit: 100
     playerUpdateInterval: 5 
-    youtubeSearchEnabled: true
+    #youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
     gc-warnings: true
 
@@ -35,27 +35,3 @@ logging:
   level:
     root: INFO
     lavalink: INFO
-
-plugins:
-  youtube:
-    enabled: true
-    allowSearch: true
-    allowDirectVideoIds: true
-    allowDirectPlaylistIds: true
-    clients: ["MUSIC", "ANDROID", "WEB"]
-  
-  lavasrc:
-    providers:
-      - "ytsearch:\"%ISRC%\"" # Use ISRC to find exact song on YouTube
-      - "ytsearch:%QUERY%"    # Fallback to text search
-    sources:
-      spotify: true      # <--- ENABLE THIS
-      deezer: false
-      yandex: false
-      applemusic: false
-    spotify:
-      clientId: "YOUR_SPOTIFY_CLIENT_ID"        # <--- PASTE HERE
-      clientSecret: "YOUR_SPOTIFY_CLIENT_SECRET" # <--- PASTE HERE
-      countryCode: "US"
-      playlistLoadLimit: 6
-      albumLoadLimit: 6
