@@ -29,10 +29,15 @@ plugins:
       - "scsearch:%QUERY%"
     sources:
       spotify: true
-      deezer: true
+      deezer: false
       yandexmusic: false
       flowerytts: false
       youtube: false
+    spotify:
+      clientId: "8a68ceea8e4d487db8d0f53868e3fbe8"
+      clientSecret: "baed31b449c44253b46dfa3b50e063e6"
+      countryCode: "US"
+      playlistLoadLimit: 6
 
 metrics:
   prometheus:
