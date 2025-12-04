@@ -48,7 +48,7 @@ module.exports = {
                         break;
                     case 'playlist':
                     case 'PLAYLIST_LOADED':
-                        rawTrack = Array.isArray(result.data.tracks) ? result.data.tracks[0] : result.tracks[0];
+                        rawTrack = Array.isArray(result.data?.tracks) ? result.data.tracks[0] : result.tracks[0];
                         message.channel.send(`⚠️ Playlists are not fully supported yet. Playing first song.`);
                         break;
                     default:
@@ -57,8 +57,14 @@ module.exports = {
 
                 if (!rawTrack) return message.channel.send('❌ Failed to load track data.');
 
+                const encodedId = rawTrack.encoded || rawTrack.track;
+                if (!encodedId) {
+                    client.logger.error(`[Data Error] Track ID missing in: ${JSON.stringify(rawTrack)}`);
+                    return message.channel.send("❌ Error: Lavalink returned incomplete data.");
+                }
+
                 const cleanTrack = {
-                    encoded: rawTrack.encoded || rawTrack.track,
+                    encoded: encodedId,
                     info: {
                         title: rawTrack.info.title,
                         uri: rawTrack.info.uri,
@@ -67,11 +73,6 @@ module.exports = {
                         identifier: rawTrack.info.identifier
                     }
                 };
-
-                if (!cleanTrack.encoded) {
-                    client.logger.error(`[Data Error] Track string missing: ${JSON.stringify(rawTrack)}`);
-                    return message.channel.send("❌ Error: Received invalid data from Lavalink Node.");
-                }
 
                 const q = getQueue(message.guild.id);
                 const isPlaying = q.current !== null;
@@ -99,13 +100,35 @@ module.exports = {
                     
                     queue.current = queue.songs.shift(); 
                     
+                    const trackString = queue.current.encoded;
+                    
+                    if (!trackString) {
+                        client.logger.error(`[Queue Error] Song object is missing 'encoded' string: ${JSON.stringify(queue.current)}`);
+                        message.channel.send("❌ Error: Queue data corrupted (missing track ID). Skipping...");
+                        return playNext();
+                    }
+
                     try {
-                        await player.playTrack({ track: queue.current.encoded });
+                        client.logger.info(`[Lavalink] Playing Track: ${queue.current.info.title}`);
+                        
+                        await player.playTrack({ track: trackString });
+                        
                         handleNowPlaying(client, player, queue.current, message.channel.id);
                     } catch (e) {
                         client.logger.error(`[Lavalink Play Error] ${e.message}`);
-                        message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
-                        playNext();
+                        
+                        if (e.message.includes('Bad Request')) {
+                            try {
+                                client.logger.info('[Lavalink] Retrying with alternative format...');
+                                await player.playTrack(trackString);
+                            } catch (retryError) {
+                                message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
+                                playNext();
+                            }
+                        } else {
+                             message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
+                             playNext();
+                        }
                     }
                 };
 
