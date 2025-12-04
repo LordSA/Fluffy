@@ -15,10 +15,24 @@ lavalink:
     bufferDurationMs: 4000
     frameBufferDurationMs: 5000
     youtubePlaylistLoadLimit: 100
-    playerUpdateInterval: 5 
-    #youtubeSearchEnabled: true
-    soundcloudSearchEnabled: true
+    playerUpdateInterval: 5
     gc-warnings: true
+  plugins:
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.1"
+      repository: "https://maven.lavalink.dev/releases"
+
+plugins:
+  lavasrc:
+    providers:
+      - "ytsearch:\"%ISRC%\""
+      - "ytsearch:%QUERY%"
+      - "scsearch:%QUERY%"
+    sources:
+      spotify: true
+      deezer: true
+      yandexmusic: false
+      flowerytts: false
+      youtube: false
 
 metrics:
   prometheus:

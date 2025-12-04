@@ -24,9 +24,14 @@ module.exports = {
                 const node = client.shoukaku.getIdealNode();
                 if (!node) return message.channel.send('❌ Lavalink not ready.');
 
-                const result = await node.rest.resolve(query.startsWith('http') ? query : `ytsearch:${query}`);
-                
-                if (!result || result.loadType === 'empty' || result.loadType === 'error') {
+                const isUrl = query.startsWith('http');
+                let result = await node.rest.resolve(isUrl ? query : `ytsearch:${query}`);
+
+                if (!isUrl && (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES')) {
+                    result = await node.rest.resolve(`scsearch:${query}`);
+                }
+
+                if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
                     return message.channel.send('❌ No results found.');
                 }
 
@@ -80,7 +85,7 @@ module.exports = {
                 const player = await client.shoukaku.joinVoiceChannel({
                     guildId: message.guild.id,
                     channelId: channel.id,
-                    shardId: 0
+                    shardId: message.guild.shardId || 0
                 });
 
                 const playNext = async () => {
