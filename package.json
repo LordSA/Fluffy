@@ -5,14 +5,15 @@
   "scripts": {
     "start": "npm run start:lavalink && npm run start:bot",
     "start:lavalink": "pm2 start java --name 'Lavalink' --cwd './Lavalink' -- -jar Lavalink.jar --interpreter java",
-    "start:bot": "pm2 start index.js --name 'fluffy' --watch --ignore-watch='node_modules logs'",
-    "stop": "pm2 delete fluffy && pm2 delete Lavalink",
+    "start:bot": "pm2 start index.js --name 'fluffy' --time",
+    "delete": "pm2 delete fluffy && pm2 delete Lavalink",
     "restart": "pm2 restart fluffy && pm2 restart Lavalink",
+    "stop": "pm2 stop fluffy && pm2 stop Lavalink",
     "logs": "pm2 logs fluffy"
   },
   "dependencies": {
     "@discord-player/extractor": "^4.4.0",
-    "@discordjs/voice": "^0.16.0",
+    "@discordjs/voice": "^0.18.0",
     "axios": "^1.7.9",
     "@distube/spotify": "^2.0.0",
     "@distube/yt-dlp": "^2.0.0",
