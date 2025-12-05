@@ -94,8 +94,10 @@ async function getAudioUrl(text, voiceConfig) {
 module.exports = {
     name: 'tts',
     description: 'Speak text in VC with Indian Language Support',
-    async execute(client, message, args) {
-        const channel = message.member.voice.channel;
+    async execute(message, args, client) {
+        if (!message.guild) return message.reply("❌ This command works only in servers.");
+        
+        const channel = message.member?.voice?.channel;
         if (!channel) return message.reply("❌ Join a Voice Channel first!");
 
         let textToSpeak = args.join(" ");
@@ -159,17 +161,19 @@ module.exports = {
             player.play(resource);
 
             player.on(AudioPlayerStatus.Playing, () => {
-                processingMsg.edit(`🗣️ Playing **${voiceConfig.name}**: "${textToSpeak.slice(0, 30)}..."`);
+                if (processingMsg.editable) {
+                    processingMsg.edit(`🗣️ Playing **${voiceConfig.name}**: "${textToSpeak.slice(0, 30)}..."`);
+                }
             });
 
             player.on('error', error => {
                 console.error(error);
-                processingMsg.edit("❌ Error playing audio.");
+                if (processingMsg.editable) processingMsg.edit("❌ Error playing audio.");
             });
 
         } catch (error) {
             console.error(error);
-            processingMsg.edit("❌ Failed to process TTS request.");
+            if (processingMsg.editable) processingMsg.edit("❌ Failed to process TTS request.");
         }
     }
 };
