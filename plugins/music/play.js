@@ -27,18 +27,18 @@ module.exports = {
                 const isUrl = query.startsWith('http');
                 let result;
 
-                if (isUrl) {
-                    result = await node.rest.resolve(query);
-                } else {
-                    result = await node.rest.resolve(`ytsearch:${query}`);
+                try {
+                    const searchType = isUrl ? query : `ytsearch:${query}`;
+                    result = await node.rest.resolve(searchType);
 
-                    if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
-                        result = await node.rest.resolve(`ytmsearch:${query}`);
+                    if (!result || result.loadType === 'empty' || result.loadType === 'NO_MATCHES' || (result.data && result.data.length === 0)) {
+                         if (!isUrl) result = await node.rest.resolve(`ytmsearch:${query}`);
                     }
-
-                    if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
-                        result = await node.rest.resolve(`scsearch:${query}`);
+                    if (!result || result.loadType === 'empty' || result.loadType === 'NO_MATCHES') {
+                         if (!isUrl) result = await node.rest.resolve(`scsearch:${query}`);
                     }
+                } catch (err) {
+                    return message.channel.send('❌ Error while searching for the track.');
                 }
 
                 if (!result || result.loadType === 'empty' || result.loadType === 'error' || result.loadType === 'NO_MATCHES') {
@@ -62,7 +62,13 @@ module.exports = {
                         message.channel.send(`⚠️ Playlists are not fully supported yet. Playing first song.`);
                         break;
                     default:
-                        return message.channel.send('❌ Unknown load type.');
+                        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+                            rawTrack = result.data[0];
+                        } else if (result.tracks && Array.isArray(result.tracks) && result.tracks.length > 0) {
+                            rawTrack = result.tracks[0];
+                        } else {
+                            return message.channel.send('❌ Unknown or empty load type.');
+                        }
                 }
 
                 if (!rawTrack) return message.channel.send('❌ Failed to load track data.');
@@ -80,12 +86,13 @@ module.exports = {
                         uri: rawTrack.info.uri,
                         length: rawTrack.info.length,
                         isStream: rawTrack.info.isStream,
-                        identifier: rawTrack.info.identifier
+                        identifier: rawTrack.info.identifier,
+                        author: rawTrack.info.author || 'Unknown'
                     }
                 };
 
                 const q = getQueue(message.guild.id);
-                const isPlaying = q.current !== null;
+                const isPlaying = q && q.current !== null;
 
                 addSong(message.guild.id, cleanTrack);
 
@@ -93,15 +100,28 @@ module.exports = {
                     return message.channel.send(`✅ Added to queue: **${cleanTrack.info.title}**`);
                 }
 
-                const player = await client.shoukaku.joinVoiceChannel({
-                    guildId: message.guild.id,
-                    channelId: channel.id,
-                    shardId: message.guild.shardId || 0
-                });
+                let player = client.shoukaku.players.get(message.guild.id);
+                
+                if (!player) {
+                    player = await client.shoukaku.joinVoiceChannel({
+                        guildId: message.guild.id,
+                        channelId: channel.id,
+                        shardId: message.guild.shardId || 0
+                    });
+                } else if (player.voiceChannelId !== channel.id) {
+                    player = await client.shoukaku.joinVoiceChannel({
+                        guildId: message.guild.id,
+                        channelId: channel.id,
+                        shardId: message.guild.shardId || 0
+                    });
+                }
+
+                player.removeAllListeners();
 
                 const playNext = async () => {
                     const queue = getQueue(message.guild.id);
-                    if (queue.songs.length === 0) {
+                    
+                    if (!queue || queue.songs.length === 0) {
                         client.shoukaku.leaveVoiceChannel(message.guild.id);
                         deleteQueue(message.guild.id);
                         handleQueueEnd(client, player, message.channel.id);
@@ -109,30 +129,26 @@ module.exports = {
                     }
                     
                     queue.current = queue.songs.shift(); 
-                    
                     const trackString = queue.current.encoded;
                     
                     if (!trackString) {
-                        client.logger.error(`[Queue Error] Song object is missing 'encoded' string: ${JSON.stringify(queue.current)}`);
-                        message.channel.send("❌ Error: Queue data corrupted (missing track ID). Skipping...");
+                        client.logger.error(`[Queue Error] Song object is missing 'encoded' string.`);
+                        message.channel.send("❌ Error: Queue data corrupted. Skipping...");
                         return playNext();
                     }
 
                     try {
                         client.logger.info(`[Lavalink] Playing Track: ${queue.current.info.title}`);
                         
-                        await player.playTrack(trackString);
+                        await player.playTrack({ track: trackString });
                         
                         handleNowPlaying(client, player, queue.current, message.channel.id);
                     } catch (e) {
                         client.logger.error(`[Lavalink Play Error] ${e.message}`);
-                        message.channel.send(`❌ Lavalink refused to play: ${e.message}`);
-                        
                         playNext();
                     }
                 };
 
-                player.removeAllListeners();
                 player.on('start', () => {}); 
                 player.on('end', (data) => {
                     if (data.reason === 'FINISHED' || data.reason === 'STOPPED') playNext();
@@ -140,6 +156,10 @@ module.exports = {
                 player.on('exception', (e) => {
                     client.logger.error(`Track Exception: ${JSON.stringify(e)}`);
                     playNext();
+                });
+                player.on('stuck', () => {
+                     client.logger.warn(`Track Stuck`);
+                     playNext();
                 });
 
                 playNext();
